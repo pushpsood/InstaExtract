@@ -42,11 +42,14 @@ std::vector<std::string> CurlConfigGenerator::getHeaders(const std::string& file
     std::string line;
     std::vector<std::string> headers;
     std::regex header_regex(R"(-H '([^']+)')");
+    std::regex cookie_regex(R"(-b '([^']+)')");
 
     while (std::getline(file, line)) {
         std::smatch match;
         if (std::regex_search(line, match, header_regex)) {
             headers.push_back(match[1]);
+        } else if (std::regex_search(line, match, cookie_regex)) {
+            headers.push_back("cookie: " + std::string(match[1]));
         }
     }
 
