@@ -263,6 +263,11 @@ function generateBulkFollowScript(usernames, speed) {
   let skippedCount = 0;
   let failedCount = 0;
 
+  const followedList = [];
+  const requestedList = [];
+  const skippedList = [];
+  const failedList = [];
+
   if (!window.location.hostname.includes('instagram.com')) {
     alert('Please switch to your active tab on https://www.instagram.com where you are logged in, then paste this script in DevTools console!');
     return;
@@ -273,7 +278,7 @@ function generateBulkFollowScript(usernames, speed) {
 
   const panel = document.createElement('div');
   panel.id = 'insta-follow-suite';
-  panel.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:2147483647; background:#161b22; color:#f0f6fc; border:1px solid #30363d; border-radius:14px; padding:18px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width:380px; box-shadow:0 16px 48px rgba(0,0,0,0.85); font-size:13px; line-height:1.5; box-sizing:border-box;';
+  panel.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:2147483647; background:#161b22; color:#f0f6fc; border:1px solid #30363d; border-radius:14px; padding:18px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width:390px; max-height:92vh; overflow-y:auto; box-shadow:0 16px 48px rgba(0,0,0,0.85); font-size:13px; line-height:1.5; box-sizing:border-box;';
   panel.innerHTML = [
     '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">',
       '<div style="display:flex; align-items:center; gap:8px;">',
@@ -303,6 +308,42 @@ function generateBulkFollowScript(usernames, speed) {
     '<div style="display:flex; gap:8px;">',
       '<button id="ief-toggle-btn" style="flex:1; background:linear-gradient(45deg,#f09433,#dc2743,#bc1888); color:white; border:none; border-radius:6px; padding:8px; font-weight:700; cursor:pointer; font-size:12px;">⏸ Pause</button>',
       '<button id="ief-stop-btn" style="background:#21262d; color:#ff7b72; border:1px solid #30363d; border-radius:6px; padding:8px 14px; cursor:pointer; font-size:12px;">Stop</button>',
+    '</div>',
+    '<div id="ief-results-container" style="display:none; margin-top:12px; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:10px 12px;">',
+      '<div style="font-weight:700; font-size:12px; color:#f0f6fc; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">',
+        '<span>📊 Export Individual Lists:</span>',
+        '<button id="ief-dl-all-btn" style="background:none; border:none; color:#58a6ff; font-size:11px; cursor:pointer; text-decoration:underline; padding:0;" title="Download complete JSON report">Download All (JSON)</button>',
+      '</div>',
+      '<div style="display:flex; flex-direction:column; gap:6px;">',
+        '<div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; background:#161b22; padding:5px 8px; border-radius:6px; border:1px solid #21262d;">',
+          '<span style="color:#3fb950; font-weight:600;">✓ Followed (<span id="ief-res-followed-count">0</span>)</span>',
+          '<div style="display:flex; gap:4px;">',
+            '<button id="ief-copy-followed-btn" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Copy followed usernames (one per line)">📋 Copy</button>',
+            '<button id="ief-dl-followed-btn" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Download followed usernames (.txt)">💾 .txt</button>',
+          '</div>',
+        '</div>',
+        '<div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; background:#161b22; padding:5px 8px; border-radius:6px; border:1px solid #21262d;">',
+          '<span style="color:#58a6ff; font-weight:600;">📩 Requested (<span id="ief-res-requested-count">0</span>)</span>',
+          '<div style="display:flex; gap:4px;">',
+            '<button id="ief-copy-requested-btn" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Copy requested usernames (one per line)">📋 Copy</button>',
+            '<button id="ief-dl-requested-btn" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Download requested usernames (.txt)">💾 .txt</button>',
+          '</div>',
+        '</div>',
+        '<div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; background:#161b22; padding:5px 8px; border-radius:6px; border:1px solid #21262d;">',
+          '<span style="color:#e3b341; font-weight:600;">⏭ Skipped (<span id="ief-res-skipped-count">0</span>)</span>',
+          '<div style="display:flex; gap:4px;">',
+            '<button id="ief-copy-skipped-btn" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Copy skipped usernames (one per line)">📋 Copy</button>',
+            '<button id="ief-dl-skipped-btn" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Download skipped usernames (.txt)">💾 .txt</button>',
+          '</div>',
+        '</div>',
+        '<div id="ief-res-failed-row" style="display:none; justify-content:space-between; align-items:center; font-size:11.5px; background:#161b22; padding:5px 8px; border-radius:6px; border:1px solid #21262d;">',
+          '<span style="color:#ff7b72; font-weight:600;">✗ Failed (<span id="ief-res-failed-count">0</span>)</span>',
+          '<div style="display:flex; gap:4px;">',
+            '<button id="ief-copy-failed-btn" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Copy failed usernames (one per line)">📋 Copy</button>',
+            '<button id="ief-dl-failed-btn" style="background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer;" title="Download failed usernames (.txt)">💾 .txt</button>',
+          '</div>',
+        '</div>',
+      '</div>',
     '</div>'
   ].join('');
   document.body.appendChild(panel);
@@ -316,6 +357,16 @@ function generateBulkFollowScript(usernames, speed) {
   const speedSelect = document.getElementById('ief-speed-select');
   const countsText = document.getElementById('ief-counts');
   const logBox = document.getElementById('ief-log');
+
+  const copyFollowedBtn = document.getElementById('ief-copy-followed-btn');
+  const dlFollowedBtn = document.getElementById('ief-dl-followed-btn');
+  const copyRequestedBtn = document.getElementById('ief-copy-requested-btn');
+  const dlRequestedBtn = document.getElementById('ief-dl-requested-btn');
+  const copySkippedBtn = document.getElementById('ief-copy-skipped-btn');
+  const dlSkippedBtn = document.getElementById('ief-dl-skipped-btn');
+  const copyFailedBtn = document.getElementById('ief-copy-failed-btn');
+  const dlFailedBtn = document.getElementById('ief-dl-failed-btn');
+  const dlAllBtn = document.getElementById('ief-dl-all-btn');
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -755,6 +806,7 @@ function generateBulkFollowScript(usernames, speed) {
 
     if (!username) {
       skippedCount++;
+      if (rawUser) skippedList.push(String(rawUser).trim());
       currentIndex++;
       updateCounts();
       processNext();
@@ -779,16 +831,19 @@ function generateBulkFollowScript(usernames, speed) {
 
     if (info.invalid || info.notFound) {
       skippedCount++;
+      skippedList.push(username);
       statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Account Not Found</span>';
       substatusText.innerText = '@' + username + ' does not exist or has been disabled.';
       log('⏭ @' + username + ': Account not found or disabled', '#e3b341');
     } else if (info.error) {
       skippedCount++;
+      skippedList.push(username);
       statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Network Error</span>';
       substatusText.innerText = '@' + username + ': ' + info.error;
       log('⏭ @' + username + ': Network error (' + info.error + ')', '#e3b341');
     } else if (viewerId && info.userId === viewerId) {
       skippedCount++;
+      skippedList.push(username);
       statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Your Own Account</span>';
       substatusText.innerText = '@' + username + ' is your logged-in account.';
       log('⏭ @' + username + ': Logged-in viewer account skipped', '#e3b341');
@@ -800,11 +855,13 @@ function generateBulkFollowScript(usernames, speed) {
 
       if (status && status.following) {
         skippedCount++;
+        skippedList.push(username);
         statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Already Following</span>';
         substatusText.innerText = 'You are already following @' + username + '.';
         log('⏭ @' + username + ': Already following', '#e3b341');
       } else if (status && status.outgoing_request) {
         skippedCount++;
+        skippedList.push(username);
         statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Already Requested</span>';
         substatusText.innerText = 'Follow request is already pending for private account @' + username + '.';
         log('⏭ @' + username + ': Follow request already pending (Private account)', '#e3b341');
@@ -824,17 +881,20 @@ function generateBulkFollowScript(usernames, speed) {
         } else if (outcome.success) {
           if (outcome.mode === 'requested') {
             requestedCount++;
+            requestedList.push(username);
             statusText.innerHTML = '<span style="color:#58a6ff;">📩 Follow Request Sent @' + username + '</span>';
             substatusText.innerText = 'Private profile request sent successfully!';
             log('📩 @' + username + ': Follow request sent (Private account)', '#58a6ff');
           } else {
             followedCount++;
+            followedList.push(username);
             statusText.innerHTML = '<span style="color:#3fb950;">✓ Followed @' + username + '</span>';
             substatusText.innerText = 'Now following (' + followedCount + ' total followed)';
             log('✓ @' + username + ': Followed successfully', '#3fb950');
           }
         } else {
           failedCount++;
+          failedList.push(username);
           statusText.innerHTML = '<span style="color:#ff7b72;">✗ Action not confirmed for @' + username + '</span>';
           substatusText.innerText = outcome.error || 'Follow request could not be completed.';
           log('✗ @' + username + ': Action unconfirmed (' + (outcome.error || 'error') + ')', '#ff7b72');
@@ -893,8 +953,154 @@ function generateBulkFollowScript(usernames, speed) {
 
       toggleBtn.innerText = '✓ Finished';
       toggleBtn.disabled = true;
+
+      showResultsSection();
     }
   }
+
+  function copyList(name, list, btn) {
+    if (!list || list.length === 0) {
+      alert('The ' + name + ' list is currently empty.');
+      return;
+    }
+    const text = list.join('\\n');
+    const oldText = btn ? btn.innerText : '';
+    const oldColor = btn ? btn.style.color : '';
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) {
+        btn.innerText = '✓ Copied!';
+        btn.style.color = '#3fb950';
+        setTimeout(() => {
+          btn.innerText = oldText;
+          btn.style.color = oldColor;
+        }, 2200);
+      }
+      log('📋 Copied ' + list.length + ' ' + name + ' username(s) to clipboard', '#3fb950');
+    }).catch(() => {
+      prompt('Copy the ' + name + ' list below (one per line):', text);
+    });
+  }
+
+  function downloadList(name, list, btn) {
+    if (!list || list.length === 0) {
+      alert('The ' + name + ' list is currently empty.');
+      return;
+    }
+    const blob = new Blob([list.join('\\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'instagram_' + name.toLowerCase() + '_' + Date.now() + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (btn) {
+      const oldText = btn.innerText;
+      const oldColor = btn.style.color;
+      btn.innerText = '✓ Saved!';
+      btn.style.color = '#58a6ff';
+      setTimeout(() => {
+        btn.innerText = oldText;
+        btn.style.color = oldColor;
+      }, 2200);
+    }
+    log('💾 Downloaded ' + list.length + ' ' + name + ' username(s) (.txt)', '#58a6ff');
+  }
+
+  function downloadAllReport() {
+    const report = {
+      timestamp: new Date().toISOString(),
+      stats: {
+        totalTargets: targets.length,
+        processed: currentIndex,
+        followed: followedList.length,
+        requested: requestedList.length,
+        skipped: skippedList.length,
+        failed: failedList.length
+      },
+      followed: followedList,
+      requested: requestedList,
+      skipped: skippedList,
+      failed: failedList
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'follow_results_' + Date.now() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    log('💾 Downloaded full follow results report (.json)', '#58a6ff');
+  }
+
+  function updateBtnState(copyBtn, dlBtn, list) {
+    if (!copyBtn || !dlBtn) return;
+    if (list.length === 0) {
+      copyBtn.disabled = true;
+      copyBtn.style.opacity = '0.45';
+      copyBtn.style.cursor = 'not-allowed';
+      dlBtn.disabled = true;
+      dlBtn.style.opacity = '0.45';
+      dlBtn.style.cursor = 'not-allowed';
+    } else {
+      copyBtn.disabled = false;
+      copyBtn.style.opacity = '1';
+      copyBtn.style.cursor = 'pointer';
+      dlBtn.disabled = false;
+      dlBtn.style.opacity = '1';
+      dlBtn.style.cursor = 'pointer';
+    }
+  }
+
+  function showResultsSection() {
+    const resultsContainer = document.getElementById('ief-results-container');
+    if (!resultsContainer) return;
+    resultsContainer.style.display = 'block';
+
+    const folCount = document.getElementById('ief-res-followed-count');
+    if (folCount) folCount.innerText = followedList.length;
+
+    const reqCount = document.getElementById('ief-res-requested-count');
+    if (reqCount) reqCount.innerText = requestedList.length;
+
+    const skipCount = document.getElementById('ief-res-skipped-count');
+    if (skipCount) skipCount.innerText = skippedList.length;
+
+    const failedRow = document.getElementById('ief-res-failed-row');
+    const failedCountEl = document.getElementById('ief-res-failed-count');
+    if (failedRow && failedCountEl) {
+      if (failedList.length > 0) {
+        failedRow.style.display = 'flex';
+        failedCountEl.innerText = failedList.length;
+      } else {
+        failedRow.style.display = 'none';
+      }
+    }
+
+    updateBtnState(copyFollowedBtn, dlFollowedBtn, followedList);
+    updateBtnState(copyRequestedBtn, dlRequestedBtn, requestedList);
+    updateBtnState(copySkippedBtn, dlSkippedBtn, skippedList);
+    updateBtnState(copyFailedBtn, dlFailedBtn, failedList);
+
+    panel.scrollTop = panel.scrollHeight;
+  }
+
+  if (copyFollowedBtn) copyFollowedBtn.onclick = function() { copyList('Followed', followedList, this); };
+  if (dlFollowedBtn) dlFollowedBtn.onclick = function() { downloadList('followed', followedList, this); };
+
+  if (copyRequestedBtn) copyRequestedBtn.onclick = function() { copyList('Requested', requestedList, this); };
+  if (dlRequestedBtn) dlRequestedBtn.onclick = function() { downloadList('requested', requestedList, this); };
+
+  if (copySkippedBtn) copySkippedBtn.onclick = function() { copyList('Skipped', skippedList, this); };
+  if (dlSkippedBtn) dlSkippedBtn.onclick = function() { downloadList('skipped', skippedList, this); };
+
+  if (copyFailedBtn) copyFailedBtn.onclick = function() { copyList('Failed', failedList, this); };
+  if (dlFailedBtn) dlFailedBtn.onclick = function() { downloadList('failed', failedList, this); };
+
+  if (dlAllBtn) dlAllBtn.onclick = function() { downloadAllReport(); };
 
   toggleBtn.onclick = () => {
     if (toggleBtn.disabled) return;
@@ -918,6 +1124,7 @@ function generateBulkFollowScript(usernames, speed) {
     substatusText.innerText = 'Queue halted at index ' + currentIndex + '/' + targets.length;
     log('🛑 Automation stopped by user at ' + currentIndex + '/' + targets.length, '#ff7b72');
     toggleBtn.disabled = true;
+    showResultsSection();
   };
 
   closeBtn.onclick = () => {

@@ -654,7 +654,8 @@
           1. Paste or enter your usernames above (one per line).<br>
           2. Click <strong>"🚀 Copy In-Browser Follow Script"</strong> below.<br>
           3. Switch to your <strong style="color:#f0f6fc;">Instagram tab</strong>, open Console (<kbd>Cmd + Option + J</kbd> on Chrome / <kbd>Cmd + Option + C</kbd> on Safari), paste and hit Enter.<br>
-          4. The floating **Follow Auto-Pilot HUD** will resolve each account, check existing friendship status, and send the follow request with human-paced safety!
+          4. The floating **Follow Auto-Pilot HUD** will resolve each account, check existing friendship status, and send the follow request with human-paced safety!<br>
+          5. <strong>Export Results:</strong> When finished (or stopped), copy or download individual lists of who was followed, requested, or skipped directly from the HUD.
         </div>
 
         <!-- Footer Actions -->
@@ -1761,7 +1762,7 @@
     for (const el of spans) {
       const raw = (el.innerText || '').trim().toLowerCase().replace(/✓/g, '').trim();
       const txt = raw.replace(/^@/, '').trim();
-      if (txt === targetClean || txt.split('\n')[0].replace(/^@/, '').trim() === targetClean) {
+      if (txt === targetClean || txt.split(/\\r?\\n/)[0].replace(/^@/, '').trim() === targetClean) {
         const row = getRowContainer(el, dialog);
         if (row) return row;
       }
@@ -1778,22 +1779,39 @@
     // Resolve user ID (pk) if missing
     if (!target.pk && target.username) {
       try {
-        const infoRes = await fetch('/api/v1/users/web_profile_info/?username=' + encodeURIComponent(target.username), {
-          headers: {
-            'x-ig-app-id': '936619743392459',
-            'x-csrftoken': csrf
-          }
-        });
-        if (infoRes.ok) {
-          const infoData = await infoRes.json().catch(() => ({}));
-          if (infoData && infoData.data && infoData.data.user && infoData.data.user.id) {
-            target.pk = String(infoData.data.user.id);
-          }
-        }
+        const infoRes = await fetch('/' + encodeURIComponent(target.username) + '/', { credentials: 'include' });
+        const html = await infoRes.text();
+        const m = html.match(/"profile_id":"([0-9]+)"/) ||
+                  html.match(/"page_id":"profilePage_([0-9]+)"/) ||
+                  html.match(/"user_id":"([0-9]+)"/) ||
+                  html.match(/"pk":"([0-9]{5,20})"/) ||
+                  html.match(/"id":"([0-9]{5,20})"/);
+        if (m && m[1]) target.pk = String(m[1]);
       } catch(e) {}
     }
 
     if (!target.pk) return { fallbackToDom: true };
+
+    // 1. Try Native Polaris Module Unfollow (0 DOM search latency)
+    try {
+      if (typeof window.requireInterop === 'function') {
+        const api = window.requireInterop('PolarisSharedAPI');
+        if (api && typeof api.unfollowUser === 'function') {
+          await api.unfollowUser(target.pk);
+          return { success: true, via: 'api' };
+        }
+      }
+    } catch(e) {}
+
+    // 2. Direct REST endpoint with Meta jazoest & fb_dtsg
+    const dtsg = (document.querySelector('input[name="fb_dtsg"]') || {}).value || '';
+    let jazoest = '';
+    const tok = dtsg || csrf;
+    if (tok) {
+      let sum = 0;
+      for (let i = 0; i < tok.length; i++) sum += tok.charCodeAt(i);
+      jazoest = '2' + sum;
+    }
 
     const headers = {
       'content-type': 'application/x-www-form-urlencoded',
@@ -1802,37 +1820,61 @@
       'x-asbd-id': '129477',
       'x-requested-with': 'XMLHttpRequest'
     };
-    const body = 'user_id=' + encodeURIComponent(target.pk);
+
+    const bodyParams = new URLSearchParams();
+    bodyParams.append('container_module', 'profile');
+    bodyParams.append('user_id', target.pk);
+    if (dtsg) bodyParams.append('fb_dtsg', dtsg);
+    if (jazoest) bodyParams.append('jazoest', jazoest);
 
     try {
-      // 1. Try modern Instagram Web endpoint
-      let res = await fetch('/api/v1/web/friendships/' + target.pk + '/unfollow/', {
+      let res = await fetch('/api/v1/friendships/destroy/' + encodeURIComponent(target.pk) + '/', {
         method: 'POST',
+        credentials: 'include',
         headers: headers,
-        body: body
+        body: bodyParams.toString()
       });
 
-      // 2. Fallback to classic endpoint if modern returns 404 or method not allowed
-      if (!res.ok && (res.status === 404 || res.status === 405)) {
-        res = await fetch('/api/v1/friendships/destroy/' + target.pk + '/', {
-          method: 'POST',
-          headers: headers,
-          body: body
-        });
-      }
+      let text = await res.text();
+      if (text.startsWith('for (;;);')) text = text.substring(9).trim();
+      let data = null;
+      try { data = JSON.parse(text); } catch(e) {}
 
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok && (data.status === 'ok' || (data.friendship_status && data.friendship_status.following === false))) {
+      if (res.ok && (data?.status === 'ok' || data?.friendship_status?.following === false)) {
         return { success: true, via: 'api' };
       }
 
-      if (data.message === 'feedback_required' || (data.status === 'fail' && data.feedback_title)) {
+      if (data?.message === 'feedback_required' || (data?.status === 'fail' && data?.feedback_title)) {
         return { blocked: true, message: 'Instagram action limit reached. Paused for safety.' };
       }
 
-      if (data.friendship_status && data.friendship_status.following === false) {
+      if (data?.friendship_status && data.friendship_status.following === false) {
         return { skipped: true, message: 'Already unfollowed (confirmed by Instagram)' };
+      }
+
+      // 3. Fallback to GraphQL Unfollow Mutation
+      const gqlParams = new URLSearchParams();
+      gqlParams.append('doc_id', '25174972798866458');
+      gqlParams.append('fb_api_req_friendly_name', 'usePolarisFollowUserUnfollowMutation');
+      gqlParams.append('variables', JSON.stringify({ target_user_id: target.pk }));
+      if (dtsg) gqlParams.append('fb_dtsg', dtsg);
+      if (jazoest) gqlParams.append('jazoest', jazoest);
+
+      let gRes = await fetch('/api/graphql', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { ...headers, 'x-fb-friendly-name': 'usePolarisFollowUserUnfollowMutation' },
+        body: gqlParams.toString()
+      });
+
+      if (gRes.ok) {
+        let gText = await gRes.text();
+        if (gText.startsWith('for (;;);')) gText = gText.substring(9).trim();
+        let gData = null;
+        try { gData = JSON.parse(gText); } catch(e) {}
+        if (gData?.data?.xdt_destroy_friendship?.friendship_status?.following === false) {
+          return { success: true, via: 'api' };
+        }
       }
 
       return { fallbackToDom: true };
@@ -1852,7 +1894,7 @@
         candidates.push(prefix);
       }
       // 2. Part without trailing digits/symbol (e.g. "monikanegi.6" -> "monikanegi")
-      const noTrailing = clean.replace(/[._]\d+$/, '');
+      const noTrailing = clean.replace(/[._]\\d+$/, '');
       if (noTrailing && noTrailing.length >= 3 && !candidates.includes(noTrailing)) {
         candidates.push(noTrailing);
       }
