@@ -1,0 +1,2126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InstaExtract Dashboard — Review Non-Mutuals &amp; Fans (Method B)</title>
+  <meta name="description" content="Interactive Instagram follower analytics dashboard. Filter non-mutuals, mutual friends, and fans. Review candidates with direct mobile deep-linking into the Instagram app.">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="https://instaextract.in/dashboard.html">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="og-image.png">
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#e1306c">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="InstaExtract Dashboard — Review Instagram Non-Mutuals">
+  <meta property="og:description" content="Interactive Instagram audit dashboard: review non-mutuals, mutuals, and fans safely.">
+  <meta property="og:image" content="https://instaextract.in/og-image.png">
+  <meta property="og:url" content="https://instaextract.in/dashboard.html">
+  <meta property="og:type" content="website">
+
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Dashboard specific layout enhancements */
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .stats-summary {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .progress-box {
+      text-align: right;
+    }
+    .progress-text {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .progress-track {
+      width: 160px;
+      height: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--public-color);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .popup-alert {
+      display: none;
+      background: rgba(248, 81, 73, 0.15);
+      border: 1px solid #f85149;
+      color: #ff7b72;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.92rem;
+    }
+    .popup-alert strong { color: white; }
+    .popup-close {
+      background: none;
+      border: none;
+      color: #ff7b72;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .quick-review-bar {
+      background: linear-gradient(90deg, rgba(225, 48, 108, 0.12), rgba(88, 166, 255, 0.12));
+      border: 1px solid rgba(225, 48, 108, 0.3);
+      border-radius: 8px;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .quick-review-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.92rem;
+    }
+    .category-desc-bar {
+      background: rgba(22, 27, 34, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 16px;
+      margin-bottom: 16px;
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .category-desc-bar strong { color: #f0f6fc; }
+    .category-desc-bar em { color: #ff7b72; font-style: normal; font-weight: 600; }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+    }
+    .chk-custom {
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+    .avatar-wrap {
+      position: relative;
+      width: 46px;
+      height: 46px;
+      flex-shrink: 0;
+    }
+    .avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #21262d;
+      border: 2px solid transparent;
+    }
+    .avatar.has-story {
+      border: 2px solid var(--accent);
+      padding: 2px;
+      background: var(--accent-gradient);
+    }
+    .user-details {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+    .user-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .username {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.98rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .username:hover { text-decoration: underline; }
+    .verified-icon {
+      color: #3897f0;
+      font-size: 0.85rem;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .full-name {
+      color: #c9d1d9;
+      font-size: 0.84rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      margin-top: 3px;
+      display: block;
+    }
+    .card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(48, 54, 61, 0.4);
+      flex-wrap: wrap;
+    }
+    .tags-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .badge.rel-mutual {
+      background: rgba(88, 166, 255, 0.15);
+      color: #58a6ff;
+      border: 1px solid rgba(88, 166, 255, 0.4);
+    }
+    .badge.rel-fan {
+      background: rgba(163, 113, 247, 0.15);
+      color: #a371f7;
+      border: 1px solid rgba(163, 113, 247, 0.4);
+    }
+    .badge.rel-not-following {
+      background: rgba(248, 81, 73, 0.15);
+      color: #ff7b72;
+      border: 1px solid rgba(248, 81, 73, 0.4);
+    }
+    .open-btn {
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 5px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .open-btn:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #21262d;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      font-size: 0.9rem;
+      display: none;
+      z-index: 3000;
+    }
+    .mobile-sync-banner {
+      display: none;
+      background: linear-gradient(90deg, rgba(88, 166, 255, 0.2), rgba(163, 113, 247, 0.2));
+      border: 1px solid #58a6ff;
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 16px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    /* Account & Consent Banners */
+    .account-banner {
+      display: none;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .demo-mode-banner {
+      background: linear-gradient(135deg, rgba(227, 179, 65, 0.12) 0%, rgba(225, 48, 108, 0.10) 100%);
+      border: 1px solid rgba(227, 179, 65, 0.45);
+    }
+    .user-mode-banner {
+      background: linear-gradient(135deg, rgba(46, 160, 67, 0.12) 0%, rgba(88, 166, 255, 0.10) 100%);
+      border: 1px solid rgba(63, 185, 80, 0.45);
+    }
+    .account-banner-content {
+      flex: 1;
+      min-width: 280px;
+    }
+    .account-banner-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .account-badge {
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      padding: 3px 9px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .demo-badge {
+      background: rgba(227, 179, 65, 0.22);
+      color: #f0b72f;
+      border: 1px solid rgba(227, 179, 65, 0.5);
+    }
+    .user-badge {
+      background: rgba(46, 160, 67, 0.22);
+      color: #3fb950;
+      border: 1px solid rgba(46, 160, 67, 0.5);
+    }
+    .account-sub-tag {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .account-name-heading {
+      font-size: 1.22rem;
+      font-weight: 700;
+      color: #f0f6fc;
+      margin: 4px 0 6px 0;
+      line-height: 1.35;
+    }
+    .highlight-username {
+      color: #58a6ff;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-weight: 700;
+    }
+    .highlight-fullname {
+      color: #c9d1d9;
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+    .account-consent-statement {
+      font-size: 0.88rem;
+      color: #e6edf3;
+      margin: 4px 0 0 0;
+      line-height: 1.5;
+    }
+    .account-notice-callout {
+      margin-top: 10px;
+      background: rgba(13, 17, 23, 0.75);
+      border: 1px solid rgba(227, 179, 65, 0.35);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 0.83rem;
+      color: #e3b341;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.45;
+    }
+    .account-banner-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: stretch;
+      flex-shrink: 0;
+    }
+    .brand-account-pill {
+      font-size: 0.78rem;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      user-select: none;
+    }
+    .brand-account-pill.demo-pill {
+      background: rgba(227, 179, 65, 0.15);
+      color: #f0b72f;
+      border: 1px solid rgba(227, 179, 65, 0.4);
+    }
+    .brand-account-pill.user-pill {
+      background: rgba(46, 160, 67, 0.15);
+      color: #3fb950;
+      border: 1px solid rgba(46, 160, 67, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="dashboard-header">
+      <div class="brand">
+        <a href="/" style="text-decoration:none; display:flex; align-items:center; gap:10px;">
+          <img src="favicon.svg" alt="InstaExtract Logo" width="32" height="32" style="border-radius:8px;">
+          <h1>InstaExtract</h1>
+        </a>
+        <span id="brandAccountPill" class="brand-account-pill" style="display:none;"></span>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" onclick="openBulkFollowModal()" title="Send bulk follow requests to a list of usernames">
+          ➕ Bulk Follow
+        </button>
+        <button class="btn btn-secondary" onclick="openRefreshModal()" title="Start a fresh audit or refresh data">
+          🔄 New Audit / Refresh
+        </button>
+        <button class="btn btn-secondary" onclick="openImportModal()" title="Import JSON dataset or file">
+          📥 Import JSON
+        </button>
+        <button class="btn btn-secondary" onclick="shareSessionToMobile()" id="mobileShareBtn" title="Sync session to AWS and show QR Code for Mobile">
+          📱 Scan to Review on Mobile
+        </button>
+        <div class="stats-summary">
+          <div class="progress-box">
+            <span class="progress-text" id="progressText">0 / 0 reviewed (0%)</span>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          </div>
+        </div>
+        <a href="index.html" class="btn btn-secondary">🏠 Home</a>
+      </div>
+    </header>
+
+    <!-- Account Context & Owner Consent Banner -->
+    <div id="accountBanner" class="account-banner" style="display:none;"></div>
+
+    <!-- Mobile Sync Status Banner -->
+    <div class="mobile-sync-banner" id="mobileSyncBanner">
+      <div>
+        📱 <strong>Mobile Mode Active:</strong> Synced via ephemeral cloud session. Tap <em>"Open ↗"</em> on any card to launch directly into your native Instagram app!
+      </div>
+      <span style="font-size:0.8rem; color:#8b949e;" id="sessionExpiryText">Expires in 24h</span>
+    </div>
+
+    <!-- Popup Warning Banner -->
+    <div class="popup-alert" id="popupWarning">
+      <div>
+        <strong>⚠️ Pop-ups were blocked by your browser!</strong><br>
+        Your browser only allowed 1 tab to open. To open 5 or 10 tabs at once: Click the <em>pop-up icon</em> in your browser address bar (top right) and select <strong>"Always allow pop-ups for this site"</strong>.
+      </div>
+      <button class="popup-close" onclick="dismissPopupWarning()">&times;</button>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="category-tabs">
+      <button class="cat-btn active" id="catNotFollowingBack" onclick="setCategory('not_following_back')" title="Accounts you follow that do not follow you back">
+        🚫 Don't Follow Back <span class="pill-count" id="countNotFollowingBack">0</span>
+      </button>
+      <button class="cat-btn" id="catFans" onclick="setCategory('fans')" title="Accounts that follow you, but you don't follow back">
+        ⭐ Fans (Not Followed Back) <span class="pill-count" id="countFans">0</span>
+      </button>
+      <button class="cat-btn" id="catMutuals" onclick="setCategory('mutuals')" title="Accounts where both of you follow each other">
+        🤝 Mutual Friends <span class="pill-count" id="countMutuals">0</span>
+      </button>
+      <button class="cat-btn" id="catFollowers" onclick="setCategory('followers')" title="All accounts following you (Mutual Friends + Fans)">
+        📥 All Followers <span class="pill-count" id="countFollowers">0</span>
+      </button>
+      <button class="cat-btn" id="catFollowing" onclick="setCategory('following')" title="All accounts you follow (Mutual Friends + Don't Follow Back)">
+        📤 All Following <span class="pill-count" id="countFollowing">0</span>
+      </button>
+    </div>
+
+    <!-- Active Category Context Banner -->
+    <div class="category-desc-bar" id="categoryDescBar">
+      <span>🚫 <strong>Don't Follow Back:</strong> Showing accounts that <em>you follow</em>, but who <em>do not follow you back</em>. These are your prime unfollow candidates.</span>
+    </div>
+
+    <!-- Quick Reviewer (Immune to Popup Blockers) -->
+    <div class="quick-review-bar">
+      <div class="quick-review-info">
+        <span>⚡ <strong>Quick Reviewer:</strong> Open next pending profile (opens Instagram mobile app on phone or new tab on desktop).</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="quickNextBtn" onclick="openNextSingle()">➡️ Open Next Pending (@...)</button>
+        <button class="btn btn-secondary" onclick="markNextSingleReviewed()">✓ Mark Next Reviewed</button>
+      </div>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="controls-panel">
+      <!-- Multi-Filter Chips -->
+      <div class="filter-chips-row">
+        <span class="filter-chip-label">Filters:</span>
+        <span class="chip" id="chipPublic" onclick="toggleChip('public')">🌐 Public</span>
+        <span class="chip" id="chipPrivate" onclick="toggleChip('private')">🔒 Private</span>
+        <span class="chip" id="chipVerified" onclick="toggleChip('verified')">✓ Verified</span>
+        <span class="chip" id="chipStory" onclick="toggleChip('story')">⭕ Has Story</span>
+        <span class="chip" id="chipCustomAvatar" onclick="toggleChip('customAvatar')">🖼️ Has Avatar</span>
+        <span class="chip" id="chipPending" onclick="toggleChip('pending')">⏳ Pending</span>
+        <span class="chip" id="chipReviewed" onclick="toggleChip('reviewed')">✓ Reviewed</span>
+      </div>
+
+      <!-- Action Toolbar -->
+      <div class="actions-row">
+        <input type="text" class="search-box" id="searchBox" placeholder="Search by username or full name..." oninput="renderCards()">
+        
+        <select class="sort-select" id="sortSelect" onchange="renderCards()">
+          <option value="user_asc">Sort: Username (A → Z)</option>
+          <option value="user_desc">Sort: Username (Z → A)</option>
+          <option value="name_asc">Sort: Full Name (A → Z)</option>
+          <option value="verified_first">Sort: Verified First</option>
+          <option value="story_first">Sort: Active Story First</option>
+          <option value="private_first">Sort: Private First</option>
+          <option value="public_first">Sort: Public First</option>
+        </select>
+
+        <button class="btn" onclick="openNextBatch(5)">Open Next 5 Tabs</button>
+        <button class="btn btn-secondary" onclick="openNextBatch(10)">Open Next 10</button>
+        <button class="btn btn-secondary" onclick="markAllVisibleReviewed()">Mark Filtered Reviewed</button>
+        <button class="btn btn-secondary" onclick="exportToCsv()">📥 Export CSV</button>
+        <button class="btn btn-danger" onclick="openUnfollowModal()">🎯 Export Unfollow Queue</button>
+        <button class="btn" style="background:linear-gradient(45deg,#f09433,#dc2743); font-weight:600;" onclick="openBulkFollowModal()">➕ Bulk Follow Queue</button>
+        <button class="btn btn-secondary" onclick="resetProgress()">🔄 Reset Progress</button>
+      </div>
+    </div>
+
+    <!-- Grid -->
+    <div class="grid" id="profileGrid"></div>
+
+    <!-- Dashboard Footer -->
+    <footer class="site-footer" style="margin-top:40px; padding-top:20px; border-top:1px solid var(--border, #30363d); text-align:center;">
+      <p style="margin-bottom:8px; color:#c9d1d9; font-size:0.88rem;">
+        This tool is made &amp; handled by <a href="https://actualorigin.com" target="_blank" rel="noopener" style="color:#58a6ff; font-weight:600; text-decoration:none;">Actual Origin</a> (<a href="https://actualorigin.com" target="_blank" rel="noopener" style="color:#58a6ff; text-decoration:underline;">actualorigin.com</a>).
+      </p>
+      <p style="color:#8b949e; font-size:0.82rem;">
+        &copy; 2026 InstaExtract. Released under the MIT License. Not affiliated with Instagram or Meta Platforms, Inc.
+      </p>
+    </footer>
+  </div>
+
+  <!-- QR Code Modal (Method B Mobile Sync) -->
+  <div id="qrModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="text-align:center; max-width:480px;">
+      <div class="modal-header">
+        <h2 style="font-size:1.25rem;">📱 Review on Mobile (Method B)</h2>
+        <button class="modal-close" onclick="closeQrModal()">&times;</button>
+      </div>
+      <div style="padding:10px 0;">
+        <p style="color:var(--text-muted); font-size:0.92rem; margin-bottom:16px;">
+          Scan with your phone camera. Your audit is synced to an ephemeral cloud session (purged in 24h). Tapping profiles on your phone opens them in the native Instagram app!
+        </p>
+        <div id="qrContainer" style="display:inline-block; background:white; padding:16px; border-radius:12px; margin-bottom:16px;"></div>
+        <div style="background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:0.85rem; word-break:break-all; margin-bottom:16px;" id="qrLinkText"></div>
+        <div style="display:flex; justify-content:center; gap:10px;">
+          <button class="btn btn-secondary" onclick="copyMobileUrl()">📋 Copy Link</button>
+          <button class="btn" onclick="closeQrModal()">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unfollow Target Confirmation Modal -->
+  <div id="unfollowModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>🎯 Unfollow Target Queue Confirmation</h2>
+        <button class="modal-close" onclick="closeUnfollowModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert-box" style="background:rgba(46,160,67,0.15); border:1px solid #3fb950; color:#3fb950; padding:12px 14px; border-radius:6px; margin-bottom:12px; font-size:0.9rem;">
+          🛡️ <strong>Safety Guarantee:</strong>
+          <span id="keepCountText">0 accounts</span> are CHECKED and will be <strong>KEPT (PROTECTED)</strong>. Mutual friends and fans are strictly excluded.
+        </div>
+        <p style="margin-bottom:8px; font-size:0.95rem;">
+          The following <strong id="unfollowCountText" style="color:#ff7b72;">0 accounts</strong> are UNCHECKED in "Not Following Back" and will be queued for unfollowing:
+        </p>
+        <div id="unfollowPreviewList" style="max-height:220px; overflow-y:auto; background:#0d1117; border:1px solid var(--border); border-radius:6px; padding:10px 14px; font-family:monospace; font-size:0.85rem; margin-bottom:14px; color:#c9d1d9;">
+        </div>
+        <div style="background:#21262d; border:1px solid var(--border); border-radius:6px; padding:12px 14px; margin-bottom:14px; font-size:0.88rem; color:#8b949e; line-height:1.5;">
+          <strong style="color:#f0f6fc;">🌐 Option 1 — 100% Automated In-Browser Script (Zero Manual Clicks):</strong><br>
+          Click <em>"🚀 Copy In-Browser Script"</em> below, switch to your <strong style="color:#f0f6fc;">Instagram tab</strong>, open Console (<kbd>Cmd + Option + J</kbd> on Chrome or <kbd>Cmd + Option + C</kbd> on Safari), and paste.<br>
+          <div style="background:rgba(225,48,108,0.12); border:1px solid rgba(225,48,108,0.3); border-radius:6px; padding:8px 10px; margin:8px 0; font-size:0.82rem; color:#ff7b72;">
+            💡 <strong>How it automates:</strong> The script injects an auto-pilot HUD. It supports <strong>Smart Auto</strong> (tries direct API, falls back seamlessly to <strong>Native Auto-Clicker</strong> directly in your Following list). Once you click "Start", it automatically searches, clicks Following, confirms unfollow, and proceeds profile-by-profile without you clicking anything!
+          </div>
+          <div style="font-size:0.8rem; color:#8b949e;">
+            ⚠️ If Chrome says <code>"Warning: Don't paste code... Type 'allow pasting'"</code>, type <strong><code>allow pasting</code></strong> and hit Enter first.
+          </div>
+          <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+          <strong style="color:#f0f6fc;">📱 Option 2 — Mobile Review (Method B):</strong><br>
+          Close this modal and click <strong>"📱 Scan to Review on Mobile"</strong> at the top to review and unfollow right inside your native Instagram phone app.
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <button class="btn btn-secondary" onclick="copyUnfollowList()">📋 Copy Usernames</button>
+          <button class="btn btn-secondary" onclick="downloadUnfollowJson()">💾 Download JSON</button>
+          <button class="btn" style="background:var(--accent-gradient);" onclick="copyInBrowserScript()">🚀 Copy In-Browser Script</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Follow Request Modal -->
+  <div id="bulkFollowModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:580px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.3rem;">➕</span>
+          <h2>Bulk Follow Request Suite</h2>
+        </div>
+        <button class="modal-close" onclick="closeBulkFollowModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Clear Instruction Alert Box -->
+        <div class="alert-box" style="background:rgba(88,166,255,0.12); border:1px solid rgba(88,166,255,0.4); padding:12px 16px; border-radius:8px; margin-bottom:14px;">
+          <strong style="color:#58a6ff; font-size:0.95rem; display:block; margin-bottom:4px;">
+            📝 Input Instructions: Add ONE username per line
+          </strong>
+          <ul style="margin:4px 0 0 18px; font-size:0.84rem; color:#c9d1d9; line-height:1.6;">
+            <li>Enter exactly <strong>one Instagram username per line</strong>.</li>
+            <li>Leading <code>@</code> symbols and surrounding spaces are automatically stripped.</li>
+            <li>Do not enter profile URLs or commas — only clean usernames.</li>
+          </ul>
+        </div>
+
+        <!-- Textarea and Quick Tools -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <label style="font-size:0.85rem; font-weight:600; color:#8b949e;">Target Usernames Queue:</label>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary" style="font-size:0.75rem; padding:3px 8px;" onclick="loadFansIntoBulkFollow()">
+              ⭐ Populate from Fans (<span id="bulkFansCount">0</span>)
+            </button>
+            <button class="btn btn-secondary" style="font-size:0.75rem; padding:3px 8px;" onclick="cleanBulkFollowTextarea()">
+              🧹 Clean &amp; Dedupe
+            </button>
+          </div>
+        </div>
+
+        <textarea id="bulkFollowTextarea" rows="7" class="search-box" style="width:100%; font-family:monospace; font-size:0.85rem; line-height:1.5; margin-bottom:6px;" placeholder="natgeo&#10;@cristiano&#10;impushps&#10;nasa" oninput="updateBulkFollowCount()"></textarea>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:0.82rem; color:#8b949e;">
+          <span id="bulkFollowCountText">0 valid username(s) entered</span>
+          <a href="#" onclick="clearBulkFollowTextarea(); return false;" style="color:#ff7b72; text-decoration:none;">Clear List</a>
+        </div>
+
+        <!-- Speed & Pacing Selector -->
+        <div style="background:#161b22; border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div>
+            <strong style="font-size:0.88rem; color:#f0f6fc;">Humanized Anti-Bot Pacing:</strong>
+            <div style="font-size:0.78rem; color:#8b949e;">Randomized delays prevent Instagram rate-limiting</div>
+          </div>
+          <select id="bulkFollowSpeed" class="sort-select" style="font-size:0.82rem; padding:4px 8px;">
+            <option value="normal" selected>🚶 Normal (10s – 18s randomized delay)</option>
+            <option value="safe">🛡️ Safe / Warm-up (20s – 35s delay)</option>
+            <option value="fast">⚡ Fast (5s – 9s delay)</option>
+          </select>
+        </div>
+
+        <!-- Automation Explainer Box -->
+        <div style="background:#21262d; border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:0.85rem; color:#8b949e; line-height:1.5;">
+          <strong style="color:#f0f6fc;">🤖 100% Automated Client-Side Follow Auto-Pilot:</strong><br>
+          1. Paste or enter your usernames above (one per line).<br>
+          2. Click <strong>"🚀 Copy In-Browser Follow Script"</strong> below.<br>
+          3. Switch to your <strong style="color:#f0f6fc;">Instagram tab</strong>, open Console (<kbd>Cmd + Option + J</kbd> on Chrome / <kbd>Cmd + Option + C</kbd> on Safari), paste and hit Enter.<br>
+          4. The floating **Follow Auto-Pilot HUD** will resolve each account, check existing friendship status, and send the follow request with human-paced safety!
+        </div>
+
+        <!-- Footer Actions -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <button class="btn btn-secondary" onclick="copyCleanedUsernames()">📋 Copy Usernames</button>
+          <button class="btn btn-secondary" onclick="downloadCleanedUsernames()">💾 Download .txt</button>
+          <button class="btn" style="background:var(--accent-gradient); font-weight:700;" onclick="copyBulkFollowScript()" id="copyBulkFollowScriptBtn">
+            🚀 Copy In-Browser Follow Script
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Dataset Modal -->
+  <div id="importModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:540px;">
+      <div class="modal-header">
+        <h2>📥 Import Audit Dataset</h2>
+        <button class="modal-close" onclick="closeImportModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-muted); font-size:0.92rem; margin-bottom:12px;">
+          Paste your extracted JSON dataset or upload a saved <code>instaextract_*.json</code> file:
+        </p>
+        <div style="margin-bottom:12px;">
+          <input type="file" id="importFileInput" accept=".json" style="margin-bottom:10px; font-size:0.85rem;" onchange="handleFileUpload(event)">
+        </div>
+        <textarea id="importJsonTextarea" rows="6" class="search-box" style="width:100%; font-family:monospace; font-size:0.8rem; margin-bottom:14px;" placeholder='{"stats": {...}, "users": [...]}'></textarea>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+          <button class="btn" onclick="applyImportedJson()">Load Dataset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Refresh / New Audit Modal -->
+  <div id="refreshModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:540px;">
+      <div class="modal-header">
+        <h2>🔄 Refresh Dashboard / New Audit</h2>
+        <button class="modal-close" onclick="closeRefreshModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:rgba(88,166,255,0.1); border:1px solid rgba(88,166,255,0.3); border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:0.88rem; color:#c9d1d9; line-height:1.5;">
+          ℹ️ <strong>Why didn't pasting cURL refresh directly?</strong><br>
+          Web browsers prohibit websites from making cross-origin requests with your Instagram cookies (CORS security). To fetch your <strong>live, up-to-date follower counts</strong>:
+        </div>
+
+        <!-- Option 1: 1-Click Live Extraction (Fastest) -->
+        <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:14px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="color:#58a6ff; font-size:0.95rem;">⚡ Option 1: Run 1-Click Live Extraction</strong>
+            <span style="font-size:0.75rem; background:rgba(88,166,255,0.2); color:#58a6ff; padding:2px 8px; border-radius:12px; font-weight:700;">Recommended (30s)</span>
+          </div>
+          <p style="font-size:0.84rem; color:#8b949e; margin-bottom:10px; line-height:1.45;">
+            Runs in your active Instagram tab using your live cookies. Takes ~30s and automatically updates and opens this dashboard with fresh data.
+          </p>
+          <button class="btn" style="background:var(--accent-gradient); width:100%; font-weight:700; padding:11px;" id="copyRefreshScriptBtn" onclick="copyRefreshScript()">
+            📋 Copy 1-Click Refresh Script
+          </button>
+          <div style="margin-top:10px; font-size:0.82rem; color:#8b949e; line-height:1.5;">
+            1. Click the button above to copy the script.<br>
+            2. Switch to your <a href="https://www.instagram.com" target="_blank" rel="noopener" style="color:#58a6ff; font-weight:600;">Instagram tab</a>.<br>
+            3. Open Console (<kbd style="background:#21262d; padding:2px 5px; border-radius:3px;">Cmd + Option + J</kbd> on Chrome / <kbd style="background:#21262d; padding:2px 5px; border-radius:3px;">Cmd + Option + C</kbd> on Safari).<br>
+            4. Press <kbd style="background:#21262d; padding:2px 5px; border-radius:3px;">Cmd + V</kbd> &amp; <kbd style="background:#21262d; padding:2px 5px; border-radius:3px;">Enter</kbd>.
+          </div>
+        </div>
+
+        <!-- Option 2: Import Fresh JSON -->
+        <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:14px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="color:#f0f6fc; font-size:0.95rem;">📥 Option 2: Import JSON Dataset</strong>
+          </div>
+          <p style="font-size:0.84rem; color:#8b949e; margin-bottom:10px; line-height:1.45;">
+            Have a fresh <code>instaextract_*.json</code> file or dataset from our CLI/Python script? Upload or paste it directly.
+          </p>
+          <button class="btn btn-secondary" style="width:100%; font-weight:600;" onclick="closeRefreshModal(); openImportModal();">
+            Upload or Paste JSON File
+          </button>
+        </div>
+
+        <!-- Option 3: Clear Saved Cache & Reset -->
+        <div style="background:rgba(248,81,73,0.08); border:1px solid rgba(248,81,73,0.3); border-radius:8px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="color:#ff7b72; font-size:0.95rem;">🧹 Option 3: Clear Saved Cache &amp; Reset</strong>
+          </div>
+          <p style="font-size:0.82rem; color:#8b949e; margin-bottom:10px; line-height:1.4;">
+            Wipes your saved browser cache (<code>sessionStorage</code>) and reviewed checkmarks so you can start completely clean or return to sample demo data.
+          </p>
+          <button class="btn btn-danger" style="width:100%; font-size:0.88rem; padding:9px 14px;" onclick="clearCachedAudit()">
+            🗑️ Clear Saved Audit &amp; Reset
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Scripts -->
+  <script src="auditor_bundle.js?v=2.3"></script>
+  <script src="lib/qrcode.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    let allUsers = [];
+    let stats = { fans: 0, followers: 0, following: 0, mutuals: 0, notFollowingBack: 0 };
+    let currentAccount = {
+      username: '',
+      fullName: '',
+      isSampleDemo: false,
+      consentNotice: ''
+    };
+    let currentCategory = 'not_following_back';
+    let reviewed = JSON.parse(localStorage.getItem('insta_reviewed_v2') || '{}');
+    let generatedMobileUrl = '';
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    const activeChips = {
+      public: false,
+      private: false,
+      verified: false,
+      story: false,
+      customAvatar: false,
+      pending: false,
+      reviewed: false
+    };
+
+    const categoryDescriptions = {
+      not_following_back: "🚫 <strong>Don't Follow Back:</strong> Showing accounts that <em>you follow</em>, but who <em>do not follow you back</em>. These are your prime unfollow candidates.",
+      fans: "⭐ <strong>Fans (Not Followed Back):</strong> Showing accounts that <em>follow you</em>, but whom <em>you do not follow back</em>.",
+      mutuals: "🤝 <strong>Mutual Friends:</strong> Accounts where <em>both you and they follow each other</em>.",
+      followers: "📥 <strong>All Followers:</strong> Showing <em>everyone who follows you</em> — both Mutual Friends and Fans.",
+      following: "📤 <strong>All Following:</strong> Showing <em>everyone you follow</em> — both Mutual Friends and Non-followers."
+    };
+
+    async function initDashboard() {
+      const params = new URLSearchParams(window.location.search);
+      const isDemoExplicit = params.get('demo') === 'true';
+      const sessionId = params.get('session');
+
+      // 1. If explicit ?demo=true requested, load sample demo
+      if (isDemoExplicit) {
+        await loadFallbackData();
+        updatePillCounts();
+        renderAccountBanner();
+        renderCards();
+        showToast('Viewing verified sample demonstration for @impushps.');
+        return;
+      }
+
+      // 2. Check window.name cross-origin transport (from in-browser auditor on instagram.com)
+      if (window.name && (window.name.startsWith('{') || window.name.includes('"users"'))) {
+        try {
+          const parsed = JSON.parse(window.name);
+          if (parsed && parsed.users && parsed.stats) {
+            allUsers = parsed.users;
+            stats = parsed.stats;
+            currentAccount = parsed.account || {
+              username: 'Personal Account',
+              fullName: '',
+              isSampleDemo: false
+            };
+            sessionStorage.setItem('insta_dataset', window.name);
+            sessionStorage.setItem('insta_user_dataset', window.name);
+            window.name = ''; // Clear to prevent re-parsing on manual refresh
+            updatePillCounts();
+            renderAccountBanner();
+            renderCards();
+            showToast(`🎉 Imported ${allUsers.length} profiles for @${currentAccount.username}!`);
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to parse window.name dataset:', e);
+        }
+      }
+
+      // 3. Cross-window postMessage listener (fallback for in-browser auditor)
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'INSTA_DATASET' && event.data.data) {
+          const d = event.data.data;
+          if (d.users && d.stats) {
+            allUsers = d.users;
+            stats = d.stats;
+            currentAccount = d.account || {
+              username: 'Personal Account',
+              fullName: '',
+              isSampleDemo: false
+            };
+            sessionStorage.setItem('insta_dataset', JSON.stringify(d));
+            sessionStorage.setItem('insta_user_dataset', JSON.stringify(d));
+            updatePillCounts();
+            renderAccountBanner();
+            renderCards();
+            showToast(`🎉 Received ${allUsers.length} profiles for @${currentAccount.username}!`);
+          }
+        }
+      });
+
+      // 4. Ephemeral cloud session (Method B Mobile Sync)
+      if (sessionId) {
+        showToast('Loading ephemeral cloud session...');
+        try {
+          const cloudData = await fetchSessionFromCloud(sessionId);
+          allUsers = cloudData.users || [];
+          stats = cloudData.stats || {};
+          currentAccount = cloudData.account || {
+            username: 'Mobile Session',
+            fullName: '',
+            isSampleDemo: false
+          };
+          document.getElementById('mobileSyncBanner').style.display = 'flex';
+          showToast(`Synced ${allUsers.length} profiles from cloud!`);
+        } catch (err) {
+          alert('Could not load cloud session: ' + err.message + '\nLoading sample data instead.');
+          await loadFallbackData();
+        }
+      } else {
+        // 5. Local storage session
+        const localData = sessionStorage.getItem('insta_dataset');
+        if (localData) {
+          try {
+            const parsed = JSON.parse(localData);
+            allUsers = parsed.users || [];
+            stats = parsed.stats || {};
+            currentAccount = parsed.account || {
+              username: 'Personal Account',
+              fullName: '',
+              isSampleDemo: false
+            };
+            showToast(`Loaded ${allUsers.length} extracted profiles.`);
+          } catch(e) {
+            await loadFallbackData();
+          }
+        } else {
+          await loadFallbackData();
+        }
+      }
+
+      updatePillCounts();
+      renderAccountBanner();
+      renderCards();
+    }
+
+    function renderAccountBanner() {
+      const banner = document.getElementById('accountBanner');
+      const pill = document.getElementById('brandAccountPill');
+      if (!banner) return;
+
+      const isDemo = !!(currentAccount && currentAccount.isSampleDemo);
+      const username = currentAccount?.username || (isDemo ? 'impushps' : 'Your Account');
+      const fullName = currentAccount?.fullName || (isDemo ? 'Pushp Sood' : '');
+      const hasUserBackup = !!sessionStorage.getItem('insta_user_dataset');
+
+      // 1. Update Header Brand Pill
+      if (pill) {
+        pill.style.display = 'inline-flex';
+        if (isDemo) {
+          pill.className = 'brand-account-pill demo-pill';
+          pill.innerHTML = `🔬 Demo: <strong>@${escapeHtml(username)}</strong>`;
+          pill.title = 'Viewing verified sample demonstration for @impushps with owner consent';
+        } else {
+          pill.className = 'brand-account-pill user-pill';
+          pill.innerHTML = `🟢 Live: <strong>@${escapeHtml(username)}</strong>`;
+          pill.title = `Auditing personal live account: @${escapeHtml(username)}`;
+        }
+      }
+
+      // 2. Render Main Account Banner
+      banner.style.display = 'flex';
+      if (isDemo) {
+        banner.className = 'account-banner demo-mode-banner';
+        banner.innerHTML = `
+          <div class="account-banner-content">
+            <div class="account-banner-header">
+              <span class="account-badge demo-badge">🔬 SAMPLE DEMO DATASET</span>
+              <span class="account-sub-tag">🛡️ Verified Owner Consent</span>
+            </div>
+            <h2 class="account-name-heading">
+              Demonstration Account: <span class="highlight-username">@${escapeHtml(username)}</span> ${fullName ? `<span class="highlight-fullname">(${escapeHtml(fullName)})</span>` : ''}
+            </h2>
+            <p class="account-consent-statement">
+              📋 <strong>Owner Consent Notice:</strong> This interactive sample uses real follower analytics for <strong>@${escapeHtml(username)}</strong> (${escapeHtml(fullName)}), displayed with the account owner’s explicit written consent to demonstrate InstaExtract’s follower analytics, non-mutual detection, and mobile deep-linking capabilities.
+            </p>
+            <div class="account-notice-callout">
+              <span style="font-size:1.15rem; line-height:1; flex-shrink:0;">ℹ️</span>
+              <div>
+                <strong>Notice unfamiliar accounts?</strong> Don't worry! These profiles belong to @${escapeHtml(username)}'s sample network — <em>your personal Instagram account is not loaded</em>. To inspect your real followers and non-mutuals, start your own private 1-click audit below.
+              </div>
+            </div>
+          </div>
+          <div class="account-banner-actions">
+            ${hasUserBackup ? `
+              <button class="btn btn-secondary" onclick="restoreUserAudit()" style="background:#238636; color:white; border-color:#2ea043; font-weight:700; white-space:nowrap; padding:9px 14px; font-size:0.86rem;">
+                ⬅️ Return to My Audit
+              </button>
+            ` : ''}
+            <button class="btn btn-primary" onclick="openRefreshModal()" style="background:var(--accent-gradient); font-weight:700; white-space:nowrap; padding:10px 18px; font-size:0.92rem; box-shadow:0 4px 14px rgba(225,48,108,0.4);">
+              ⚡ Audit My Account (1-Click)
+            </button>
+            <button class="btn btn-secondary" onclick="openImportModal()" style="font-size:0.84rem; padding:8px 14px; white-space:nowrap;">
+              📥 Import JSON
+            </button>
+          </div>
+        `;
+      } else {
+        banner.className = 'account-banner user-mode-banner';
+        banner.innerHTML = `
+          <div class="account-banner-content">
+            <div class="account-banner-header">
+              <span class="account-badge user-badge">🟢 YOUR LIVE AUDIT</span>
+              <span class="account-sub-tag">🔒 Private Local Session</span>
+            </div>
+            <h2 class="account-name-heading">
+              Auditing Account: <span class="highlight-username">@${escapeHtml(username)}</span> ${fullName ? `<span class="highlight-fullname">(${escapeHtml(fullName)})</span>` : ''}
+            </h2>
+            <p class="account-consent-statement">
+              🔒 <strong>Your Authentic Instagram Data:</strong> Showing your real follower list. This audit is stored exclusively in your local browser session (<code>sessionStorage</code>) and is <em>never uploaded or saved to any external database</em>.
+            </p>
+          </div>
+          <div class="account-banner-actions">
+            <button class="btn btn-secondary" onclick="openRefreshModal()" style="font-weight:600; font-size:0.88rem; padding:9px 14px; white-space:nowrap;">
+              🔄 Re-audit / Refresh
+            </button>
+            <button class="btn btn-secondary" onclick="loadSampleDemoMode()" style="font-size:0.84rem; padding:8px 14px; white-space:nowrap;" title="Switch to @impushps public demo dataset">
+              🔬 View Sample Demo
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    async function loadSampleDemoMode() {
+      showToast('Loading sample demonstration dataset for @impushps...');
+      await loadFallbackData();
+      updatePillCounts();
+      renderAccountBanner();
+      renderCards();
+    }
+
+    function restoreUserAudit() {
+      const userRaw = sessionStorage.getItem('insta_user_dataset');
+      if (userRaw) {
+        try {
+          const parsed = JSON.parse(userRaw);
+          allUsers = parsed.users || [];
+          stats = parsed.stats || {};
+          currentAccount = parsed.account || { username: 'Personal Account', isSampleDemo: false };
+          sessionStorage.setItem('insta_dataset', userRaw);
+          updatePillCounts();
+          renderAccountBanner();
+          renderCards();
+          showToast(`Restored live audit for @${currentAccount.username}`);
+        } catch(e) {
+          console.warn('Failed to restore user audit:', e);
+        }
+      }
+    }
+
+    function openRefreshModal() {
+      document.getElementById('refreshModal').style.display = 'flex';
+    }
+    function closeRefreshModal() {
+      document.getElementById('refreshModal').style.display = 'none';
+    }
+    function copyRefreshScript() {
+      const code = window.INSTA_AUDITOR_SCRIPT || '';
+      if (!code) {
+        alert('Extraction script is not loaded yet. Please refresh the page.');
+        return;
+      }
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('copyRefreshScriptBtn');
+        if (btn) {
+          btn.innerText = '✓ Copied! Now Paste in Instagram Console';
+          btn.style.background = '#238636';
+          setTimeout(() => {
+            btn.innerText = '📋 Copy 1-Click Refresh Script';
+            btn.style.background = 'var(--accent-gradient)';
+          }, 4500);
+        }
+      }).catch(() => {
+        prompt('Copy the extraction script below:', code);
+      });
+    }
+    function clearCachedAudit() {
+      if (confirm('Clear your cached audit dataset and reset progress? This will reload the dashboard.')) {
+        sessionStorage.removeItem('insta_dataset');
+        sessionStorage.removeItem('insta_user_dataset');
+        localStorage.removeItem('insta_reviewed_v2');
+        showToast('Cache cleared! Reloading fresh...');
+        setTimeout(() => {
+          window.location.href = 'dashboard.html';
+        }, 500);
+      }
+    }
+
+    function openImportModal() {
+      document.getElementById('importModal').style.display = 'flex';
+    }
+    function closeImportModal() {
+      document.getElementById('importModal').style.display = 'none';
+    }
+    function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        document.getElementById('importJsonTextarea').value = evt.target.result;
+      };
+      reader.readAsText(file);
+    }
+    function applyImportedJson() {
+      const text = document.getElementById('importJsonTextarea').value.trim();
+      if (!text) {
+        alert('Please paste JSON or upload a file.');
+        return;
+      }
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.users && parsed.stats) {
+          allUsers = parsed.users;
+          stats = parsed.stats;
+          currentAccount = parsed.account || {
+            username: 'Imported Dataset',
+            fullName: '',
+            isSampleDemo: false
+          };
+          sessionStorage.setItem('insta_dataset', text);
+          sessionStorage.setItem('insta_user_dataset', text);
+          closeImportModal();
+          updatePillCounts();
+          renderAccountBanner();
+          renderCards();
+          showToast(`🎉 Imported ${allUsers.length} profiles!`);
+        } else {
+          alert('Invalid format: JSON must contain "users" and "stats" properties.');
+        }
+      } catch (err) {
+        alert('Failed to parse JSON: ' + err.message);
+      }
+    }
+
+    async function loadFallbackData() {
+      try {
+        const res = await fetch('demo_data.json');
+        if (res.ok) {
+          const d = await res.json();
+          allUsers = d.users || [];
+          stats = d.stats || {};
+          currentAccount = d.account || {
+            username: 'impushps',
+            fullName: 'Pushp Sood',
+            isSampleDemo: true,
+            consentNotice: 'Showing public sample demonstration for @impushps with verified owner consent.'
+          };
+        }
+      } catch (err) {
+        console.warn('Fallback demo_data.json load error:', err);
+      }
+    }
+
+    function updatePillCounts() {
+      document.getElementById('countNotFollowingBack').innerText = stats.notFollowingBack || 0;
+      document.getElementById('countFans').innerText = stats.fans || 0;
+      document.getElementById('countMutuals').innerText = stats.mutuals || 0;
+      document.getElementById('countFollowers').innerText = stats.followers || 0;
+      document.getElementById('countFollowing').innerText = stats.following || 0;
+    }
+
+    function setCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      if (cat === 'not_following_back') document.getElementById('catNotFollowingBack').classList.add('active');
+      if (cat === 'fans') document.getElementById('catFans').classList.add('active');
+      if (cat === 'mutuals') document.getElementById('catMutuals').classList.add('active');
+      if (cat === 'following') document.getElementById('catFollowing').classList.add('active');
+      if (cat === 'followers') document.getElementById('catFollowers').classList.add('active');
+
+      const descEl = document.getElementById('categoryDescBar');
+      if (descEl && categoryDescriptions[cat]) {
+        descEl.innerHTML = categoryDescriptions[cat];
+      }
+      renderCards();
+    }
+
+    function toggleChip(chipName) {
+      activeChips[chipName] = !activeChips[chipName];
+      const chipEl = document.getElementById('chip' + chipName.charAt(0).toUpperCase() + chipName.slice(1));
+      if (chipEl) {
+        if (activeChips[chipName]) chipEl.classList.add('active');
+        else chipEl.classList.remove('active');
+      }
+      renderCards();
+    }
+
+    function getFilteredAndSortedUsers() {
+      const q = document.getElementById('searchBox').value.trim().toLowerCase();
+      const sortMode = document.getElementById('sortSelect').value;
+
+      let list = allUsers.filter(u => {
+        if (currentCategory === 'not_following_back' && !(u.followedByViewer && !u.followsViewer)) return false;
+        if (currentCategory === 'fans' && !(!u.followedByViewer && u.followsViewer)) return false;
+        if (currentCategory === 'mutuals' && !(u.followedByViewer && u.followsViewer)) return false;
+        if (currentCategory === 'following' && !u.followedByViewer) return false;
+        if (currentCategory === 'followers' && !u.followsViewer) return false;
+
+        const isRev = !!reviewed[u.username];
+        if (activeChips.public && u.isPrivate) return false;
+        if (activeChips.private && !u.isPrivate) return false;
+        if (activeChips.verified && !u.isVerified) return false;
+        if (activeChips.story && !(u.latestReelMedia > 0)) return false;
+        if (activeChips.customAvatar && u.hasAnonymousProfilePicture) return false;
+        if (activeChips.pending && isRev) return false;
+        if (activeChips.reviewed && !isRev) return false;
+
+        if (q) {
+          const cleanQ = q.replace(/^@/, '').trim();
+          const normQ = cleanQ.replace(/[._]/g, '');
+          const normUser = u.username.toLowerCase().replace(/[._]/g, '');
+          const matchUser = u.username.toLowerCase().includes(cleanQ) || (normQ.length >= 3 && normUser.includes(normQ));
+          const matchName = u.fullName ? u.fullName.toLowerCase().includes(cleanQ) : false;
+          if (!matchUser && !matchName) return false;
+        }
+
+        return true;
+      });
+
+      list.sort((a, b) => {
+        if (sortMode === 'user_asc') return a.username.localeCompare(b.username);
+        if (sortMode === 'user_desc') return b.username.localeCompare(a.username);
+        if (sortMode === 'name_asc') return (a.fullName || a.username).localeCompare(b.fullName || b.username);
+        if (sortMode === 'verified_first') return (b.isVerified ? 1 : 0) - (a.isVerified ? 1 : 0);
+        if (sortMode === 'story_first') return (b.latestReelMedia > 0 ? 1 : 0) - (a.latestReelMedia > 0 ? 1 : 0);
+        if (sortMode === 'private_first') return (b.isPrivate ? 1 : 0) - (a.isPrivate ? 1 : 0);
+        if (sortMode === 'public_first') return (a.isPrivate ? 1 : 0) - (b.isPrivate ? 1 : 0);
+        return 0;
+      });
+
+      return list;
+    }
+
+    function renderCards() {
+      const grid = document.getElementById('profileGrid');
+      grid.innerHTML = '';
+      const filtered = getFilteredAndSortedUsers();
+
+      const pendingInFilter = filtered.filter(u => !reviewed[u.username]);
+      const nextBtn = document.getElementById('quickNextBtn');
+      if (pendingInFilter.length > 0) {
+        nextBtn.innerText = `➡️ Open Next Pending (@${pendingInFilter[0].username})`;
+        nextBtn.disabled = false;
+      } else {
+        nextBtn.innerText = `✓ All Pending Reviewed in Filter`;
+        nextBtn.disabled = true;
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1; text-align:center; padding:50px 20px; color:var(--text-muted);">No profiles match the current filter or search criteria.</div>';
+        updateProgress();
+        return;
+      }
+
+      filtered.forEach(p => {
+        const isRev = !!reviewed[p.username];
+        const card = document.createElement('div');
+        card.className = 'card' + (isRev ? ' reviewed' : '');
+
+        const hasStory = (p.latestReelMedia > 0);
+        const avatarUrl = p.profilePicUrl && !p.hasAnonymousProfilePicture
+          ? p.profilePicUrl
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username)}&background=21262d&color=8b949e`;
+
+        let relBadge = '';
+        if (p.relationship === 'mutual' || (p.followedByViewer && p.followsViewer)) {
+          relBadge = '<span class="badge rel-mutual" title="Mutual: You and this account follow each other">🤝 Mutual Friend</span>';
+        } else if (p.relationship === 'fan' || (!p.followedByViewer && p.followsViewer)) {
+          relBadge = '<span class="badge rel-fan" title="Fan: Follows you, but you do not follow back">⭐ Fan (Not Followed)</span>';
+        } else if (p.relationship === 'not_following_back' || (p.followedByViewer && !p.followsViewer)) {
+          relBadge = '<span class="badge rel-not-following" title="You follow, but this account does not follow you back">🚫 Doesn\'t Follow Back</span>';
+        }
+
+        const displayName = p.fullName && p.fullName.trim().length > 0 ? p.fullName : '';
+
+        card.innerHTML = `
+          <div class="card-top">
+            <div class="profile-info">
+              <input type="checkbox" class="chk-custom" ${isRev ? 'checked' : ''} onchange="toggleReviewed('${p.username}', this.checked)">
+              <div class="avatar-wrap">
+                <img class="avatar ${hasStory ? 'has-story' : ''}" src="${avatarUrl}" alt="${p.username}" onerror="this.src='https://ui-avatars.com/api/?name=${p.username}&background=21262d&color=8b949e'">
+              </div>
+              <div class="user-details">
+                <div class="user-row">
+                  <a class="username" href="https://www.instagram.com/${p.username}/" target="_blank" onclick="markReviewed('${p.username}')" title="@${p.username}">@${p.username}</a>
+                  ${p.isVerified ? '<span class="verified-icon" title="Verified Account">✓</span>' : ''}
+                </div>
+                ${displayName ? `<span class="full-name" title="${displayName}">${displayName}</span>` : `<span class="full-name" style="opacity:0.45; font-style:italic;">No display name</span>`}
+              </div>
+            </div>
+            <button class="open-btn" onclick="openProfile('${p.username}'); markReviewed('${p.username}');">Open ↗</button>
+          </div>
+          <div class="card-bottom">
+            <div class="tags-row">
+              ${relBadge}
+              ${hasStory ? '<span class="badge story" style="background:rgba(225,48,108,0.2); color:#ff7b72; border:1px solid rgba(225,48,108,0.4);">⭕ Story</span>' : ''}
+              <span class="badge ${p.isPrivate ? 'private' : 'public'}">${p.isPrivate ? '🔒 Private' : '🌐 Public'}</span>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      updateProgress();
+    }
+
+    function toggleReviewed(name, state) {
+      if (state) reviewed[name] = true;
+      else delete reviewed[name];
+      saveAndRefresh();
+    }
+
+    function markReviewed(name) {
+      reviewed[name] = true;
+      saveAndRefresh();
+    }
+
+    function openNextSingle() {
+      const pending = getFilteredAndSortedUsers().filter(u => !reviewed[u.username]);
+      if (pending.length === 0) {
+        showToast('No pending profiles to open!');
+        return;
+      }
+      const target = pending[0];
+      openProfile(target.username);
+      reviewed[target.username] = true;
+      saveAndRefresh();
+      showToast(`Opened @${target.username}`);
+    }
+
+    function markNextSingleReviewed() {
+      const pending = getFilteredAndSortedUsers().filter(u => !reviewed[u.username]);
+      if (pending.length === 0) {
+        showToast('No pending profiles in current filter!');
+        return;
+      }
+      const target = pending[0];
+      reviewed[target.username] = true;
+      saveAndRefresh();
+      showToast(`Marked @${target.username} as reviewed`);
+    }
+
+    function openNextBatch(count) {
+      const pending = getFilteredAndSortedUsers().filter(u => !reviewed[u.username]);
+      if (pending.length === 0) {
+        showToast('No pending profiles left in this filter!');
+        return;
+      }
+      const batch = pending.slice(0, count);
+      let openedCount = 0;
+      batch.forEach(u => {
+        const win = window.open(`https://www.instagram.com/${u.username}/`, '_blank');
+        if (win) {
+          openedCount++;
+          reviewed[u.username] = true;
+        }
+      });
+
+      saveAndRefresh();
+
+      if (openedCount < batch.length) {
+        const warn = document.getElementById('popupWarning');
+        if (warn) warn.style.display = 'flex';
+        showToast(`Opened ${openedCount} tab(s). Browser blocked pop-ups for others!`);
+      } else {
+        showToast(`Successfully opened ${openedCount} profile tabs`);
+      }
+    }
+
+    function dismissPopupWarning() {
+      const warn = document.getElementById('popupWarning');
+      if (warn) warn.style.display = 'none';
+    }
+
+    function markAllVisibleReviewed() {
+      const visible = getFilteredAndSortedUsers();
+      if (visible.length === 0) return;
+      if (!confirm(`Mark all ${visible.length} visible profiles as reviewed?`)) return;
+      visible.forEach(u => reviewed[u.username] = true);
+      saveAndRefresh();
+      showToast(`Marked ${visible.length} profiles as reviewed.`);
+    }
+
+    function resetProgress() {
+      if (!confirm('Are you sure you want to reset all reviewed checkmarks? This will uncheck all profiles.')) return;
+      reviewed = {};
+      saveAndRefresh();
+      showToast('All progress reset.');
+    }
+
+    function exportToCsv() {
+      const rows = [
+        ['Username', 'Full Name', 'Relationship', 'Is Private', 'Is Verified', 'Has Story', 'Reviewed']
+      ];
+      const visible = getFilteredAndSortedUsers();
+      visible.forEach(u => {
+        rows.push([
+          u.username,
+          `"${(u.fullName || '').replace(/"/g, '""')}"`,
+          u.relationship || 'unknown',
+          u.isPrivate ? 'Private' : 'Public',
+          u.isVerified ? 'Yes' : 'No',
+          u.latestReelMedia > 0 ? 'Yes' : 'No',
+          reviewed[u.username] ? 'Reviewed' : 'Pending'
+        ]);
+      });
+      const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.join(',')).join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `instaextract_${currentCategory}_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Exported CSV!');
+    }
+
+    function saveAndRefresh() {
+      localStorage.setItem('insta_reviewed_v2', JSON.stringify(reviewed));
+      renderCards();
+    }
+
+    function updateProgress() {
+      const relevantUsers = allUsers.filter(u => u.followedByViewer && !u.followsViewer);
+      const totalRelevant = relevantUsers.length;
+      let revCount = 0;
+      relevantUsers.forEach(u => {
+        if (reviewed[u.username]) revCount++;
+      });
+      const pct = totalRelevant > 0 ? Math.round((revCount / totalRelevant) * 100) : 0;
+      const progressText = document.getElementById('progressText');
+      const progressFill = document.getElementById('progressFill');
+      if (progressText && progressFill) {
+        progressText.innerText = `${revCount} / ${totalRelevant} reviewed (${pct}%)`;
+        progressFill.style.width = `${pct}%`;
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 2800);
+    }
+
+    // Method B Mobile Session Sharing
+    async function shareSessionToMobile() {
+      const btn = document.getElementById('mobileShareBtn');
+      const originalText = btn.innerText;
+      btn.innerText = '⏳ Syncing to AWS...';
+      btn.disabled = true;
+
+      try {
+        const payload = {
+          stats: stats,
+          users: allUsers,
+          reviewed: reviewed
+        };
+
+        const sessionId = await syncSessionToCloud(payload);
+        const mobileUrl = `${window.location.origin}${window.location.pathname}?session=${sessionId}`;
+        generatedMobileUrl = mobileUrl;
+
+        renderQrCode('qrContainer', mobileUrl);
+        document.getElementById('qrLinkText').innerText = mobileUrl;
+        document.getElementById('qrModal').style.display = 'flex';
+      } catch (err) {
+        alert('Could not sync session to cloud: ' + err.message);
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    function closeQrModal() {
+      document.getElementById('qrModal').style.display = 'none';
+    }
+
+    function copyMobileUrl() {
+      if (!generatedMobileUrl) return;
+      navigator.clipboard.writeText(generatedMobileUrl).then(() => {
+        showToast('Copied mobile URL to clipboard!');
+      });
+    }
+
+    // Unfollow Modal Logic
+    function openUnfollowModal() {
+      const notFollowing = allUsers.filter(u => u.followedByViewer && !u.followsViewer);
+      const targets = notFollowing.filter(u => !reviewed[u.username]);
+      const kept = notFollowing.filter(u => reviewed[u.username]);
+
+      document.getElementById('keepCountText').innerText = `${kept.length} accounts`;
+      document.getElementById('unfollowCountText').innerText = `${targets.length} accounts`;
+
+      const listDiv = document.getElementById('unfollowPreviewList');
+      if (targets.length === 0) {
+        listDiv.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:16px;">No targets queued! Every non-follower account is checked as "Reviewed / Kept".</div>';
+      } else {
+        listDiv.innerHTML = targets.map((u, i) => `${i + 1}. @${u.username} (${u.fullName || 'no display name'})`).join('<br>');
+      }
+
+      document.getElementById('unfollowModal').style.display = 'flex';
+    }
+
+    function closeUnfollowModal() {
+      document.getElementById('unfollowModal').style.display = 'none';
+    }
+
+    function copyUnfollowList() {
+      const targets = allUsers
+        .filter(u => u.followedByViewer && !u.followsViewer && !reviewed[u.username])
+        .map(u => u.username);
+      if (targets.length === 0) {
+        showToast('No targets in unfollow queue.');
+        return;
+      }
+      navigator.clipboard.writeText(targets.join('\n')).then(() => {
+        showToast(`Copied ${targets.length} usernames to clipboard!`);
+      });
+    }
+
+    function downloadUnfollowJson() {
+      const targets = allUsers
+        .filter(u => u.followedByViewer && !u.followsViewer && !reviewed[u.username])
+        .map(u => ({
+          username: u.username,
+          pk: u.pk,
+          fullName: u.fullName
+        }));
+      const blob = new Blob([JSON.stringify(targets, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'unfollow_targets.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Downloaded ${targets.length} unfollow targets`);
+    }
+
+    function copyInBrowserScript() {
+      const targets = allUsers
+        .filter(u => u.followedByViewer && !u.followsViewer && !reviewed[u.username])
+        .map(u => ({
+          username: u.username,
+          pk: u.pk
+        }));
+
+      if (targets.length === 0) {
+        showToast('No unfollow targets found!');
+        return;
+      }
+
+      const script = `(function() {
+  const targets = ${JSON.stringify(targets)};
+  let isPaused = false;
+  let currentIndex = 0;
+  let successCount = 0;
+  let failCount = 0;
+  let skipCount = 0;
+
+  const old = document.getElementById('insta-unfollow-suite');
+  if (old) old.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'insta-unfollow-suite';
+  panel.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:999999; background:#161b22; color:#f0f6fc; border:1px solid #30363d; border-radius:14px; padding:20px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width:360px; box-shadow:0 16px 48px rgba(0,0,0,0.85); font-size:13px; line-height:1.5;';
+  panel.innerHTML = [
+    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">',
+      '<div style="display:flex; align-items:center; gap:8px;">',
+        '<span style="font-size:16px;">🤖</span>',
+        '<strong style="background:linear-gradient(45deg,#f09433,#dc2743,#bc1888);-webkit-background-clip:text;-webkit-text-fill-color:transparent; font-size:1.15rem; font-weight:700;">InstaExtract Auto-Pilot</strong>',
+      '</div>',
+      '<button id="ie-close-btn" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:1.4rem;line-height:1;" title="Close">&times;</button>',
+    '</div>',
+    '<div style="font-size:0.85rem; color:#8b949e; margin-bottom:10px; display:flex; justify-content:space-between;">',
+      '<span>Target Queue: <strong>' + targets.length + '</strong> non-mutuals</span>',
+      '<span id="ie-counts" style="color:#58a6ff; font-weight:600;">0 unfollowed</span>',
+    '</div>',
+    '<div style="background:#21262d; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">',
+      '<span style="color:#8b949e;">Pacing Speed:</span>',
+      '<select id="ie-speed-select" style="background:#161b22; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer;">',
+        '<option value="fast">⚡ Fast (5s - 8s)</option>',
+        '<option value="normal" selected>🚶 Normal (10s - 15s)</option>',
+        '<option value="safe">🛡️ Safe (20s - 30s)</option>',
+      '</select>',
+    '</div>',
+    '<div id="ie-guide-msg" style="display:none; background:rgba(225,48,108,0.15); border:1px solid rgba(225,48,108,0.3); border-radius:6px; padding:10px 12px; margin-bottom:12px; font-size:11px; color:#ff7b72; line-height:1.4;">',
+      '👉 <strong>Action Required:</strong> Please open your Instagram <strong>Following</strong> modal dialog so the Auto-Pilot can search and unfollow!',
+      '<div style="margin-top:8px;">',
+        '<button id="ie-open-following-btn" style="background:#30363d; color:#f0f6fc; border:1px solid #8b949e; border-radius:4px; padding:4px 10px; font-size:11px; cursor:pointer; font-weight:600;">📂 Open My Following List</button>',
+      '</div>',
+    '</div>',
+    '<div id="ie-status" style="font-size:0.88rem; font-weight:600; margin-bottom:8px; color:#58a6ff;">Ready to start automation</div>',
+    '<div style="height:6px; background:#30363d; border-radius:3px; overflow:hidden; margin-bottom:14px;">',
+      '<div id="ie-prog-bar" style="height:100%; width:0%; background:#3fb950; transition:width 0.3s;"></div>',
+    '</div>',
+    '<div style="display:flex; gap:8px;">',
+      '<button id="ie-toggle-btn" style="flex:1; background:linear-gradient(45deg,#f09433,#dc2743,#bc1888); color:white; border:none; border-radius:6px; padding:9px; font-weight:600; cursor:pointer;">▶ Start Auto-Pilot</button>',
+      '<button id="ie-stop-btn" style="background:#21262d; color:#ff7b72; border:1px solid #30363d; border-radius:6px; padding:9px 14px; cursor:pointer;">Stop</button>',
+    '</div>'
+  ].join('');
+  document.body.appendChild(panel);
+
+  const statusText = document.getElementById('ie-status');
+  const progBar = document.getElementById('ie-prog-bar');
+  const toggleBtn = document.getElementById('ie-toggle-btn');
+  const stopBtn = document.getElementById('ie-stop-btn');
+  const closeBtn = document.getElementById('ie-close-btn');
+  const speedSelect = document.getElementById('ie-speed-select');
+  const guideMsg = document.getElementById('ie-guide-msg');
+  const openFollowingBtn = document.getElementById('ie-open-following-btn');
+  const countsText = document.getElementById('ie-counts');
+
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  function getViewerUsername() {
+    try {
+      if (window._sharedData && window._sharedData.config && window._sharedData.config.viewer && window._sharedData.config.viewer.username) {
+        return window._sharedData.config.viewer.username;
+      }
+    } catch(e) {}
+    const profileImg = document.querySelector('img[data-testid="user-avatar"]') || document.querySelector('nav a[href*="/"] img');
+    if (profileImg) {
+      const a = profileImg.closest('a');
+      if (a && a.getAttribute('href')) {
+        const parts = a.getAttribute('href').split('/').filter(Boolean);
+        const u = parts[0] || '';
+        if (u && !['explore', 'reels', 'direct', 'stories'].includes(u)) return u;
+      }
+    }
+    return null;
+  }
+
+  function getDelay() {
+    const s = speedSelect ? speedSelect.value : 'normal';
+    if (s === 'fast') return Math.floor(Math.random() * 3000) + 5000;
+    if (s === 'safe') return Math.floor(Math.random() * 10000) + 20000;
+    return Math.floor(Math.random() * 5000) + 10000;
+  }
+
+  function updateCounts() {
+    if (countsText) countsText.innerText = successCount + ' unfollowed (' + currentIndex + '/' + targets.length + ')';
+  }
+
+  function setReactInputValue(input, value) {
+    if (!input) return;
+    try {
+      input.focus();
+      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      if (nativeSetter) {
+        nativeSetter.call(input, value);
+      } else {
+        input.value = value;
+      }
+      if (input._valueTracker) {
+        input._valueTracker.setValue(value);
+      }
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch(e) {}
+  }
+
+  async function clearSearchInput(input) {
+    if (!input) return;
+    const clearBtn = input.parentElement ? input.parentElement.querySelector('button, [role="button"]') : null;
+    if (clearBtn && clearBtn.querySelector('svg')) {
+      try { clearBtn.click(); } catch(e) {}
+    }
+    setReactInputValue(input, '');
+    await sleep(350);
+  }
+
+  function getFollowingDialog() {
+    const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
+    return dialogs.find(d => {
+      const input = d.querySelector('input');
+      const text = d.innerText || '';
+      return input || text.includes('Following') || text.includes('Search');
+    });
+  }
+
+  function getSearchInput(dialog) {
+    return dialog.querySelector('input[type="text"]') ||
+           dialog.querySelector('input[placeholder*="Search"]') ||
+           dialog.querySelector('input[aria-label*="Search"]') ||
+           dialog.querySelector('input');
+  }
+
+  function getRowContainer(el, dialog) {
+    let curr = el;
+    while (curr && curr !== dialog) {
+      const btn = curr.querySelector('button');
+      if (btn) {
+        const btnTxt = (btn.innerText || '').trim().toLowerCase();
+        if (btnTxt.includes('follow') || btnTxt.includes('requested')) {
+          return curr;
+        }
+      }
+      curr = curr.parentElement;
+    }
+    return null;
+  }
+
+  function findUserRow(dialog, targetUsername) {
+    const targetClean = targetUsername.toLowerCase().trim();
+
+    const links = Array.from(dialog.querySelectorAll('a'));
+    for (const a of links) {
+      let href = (a.getAttribute('href') || '').toLowerCase().split('?')[0];
+      if (href.includes('://')) href = '/' + href.split('://')[1].split('/').slice(1).join('/');
+      const parts = href.split('/').filter(Boolean);
+      if (parts[0] === targetClean) {
+        const row = getRowContainer(a, dialog);
+        if (row) return row;
+      }
+    }
+
+    const spans = Array.from(dialog.querySelectorAll('span, div[dir="auto"], a'));
+    for (const el of spans) {
+      const txt = (el.innerText || '').trim().toLowerCase().replace(/✓/g, '').trim();
+      if (txt === targetClean) {
+        const row = getRowContainer(el, dialog);
+        if (row) return row;
+      }
+    }
+
+    return null;
+  }
+
+  async function unfollowViaApi(target) {
+    if (!target || !target.pk) return { fallbackToDom: true };
+    const csrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+    if (!csrf) return { fallbackToDom: true };
+
+    try {
+      const res = await fetch('/api/v1/friendships/destroy/' + target.pk + '/', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'x-csrftoken': csrf,
+          'x-ig-app-id': '936619743392459',
+          'x-asbd-id': '129477',
+          'x-requested-with': 'XMLHttpRequest'
+        },
+        body: 'user_id=' + encodeURIComponent(target.pk)
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.status === 'ok') {
+        return { success: true, via: 'api' };
+      }
+
+      if (data.message === 'feedback_required' || (data.status === 'fail' && data.feedback_title)) {
+        return { blocked: true, message: 'Instagram action limit reached. Paused for safety.' };
+      }
+
+      if (data.friendship_status && data.friendship_status.following === false) {
+        return { skipped: true, message: 'Already unfollowed (confirmed by Instagram)' };
+      }
+
+      return { fallbackToDom: true };
+    } catch(e) {
+      return { fallbackToDom: true };
+    }
+  }
+
+  function getSearchQueryCandidates(username) {
+    const clean = (username || '').toLowerCase().trim();
+    const candidates = [clean];
+
+    if (clean.includes('.') || clean.includes('_')) {
+      // 1. Part before the first dot/underscore (e.g. "monikanegi" from "monikanegi.6")
+      const prefix = clean.split(/[._]/)[0];
+      if (prefix && prefix.length >= 3 && !candidates.includes(prefix)) {
+        candidates.push(prefix);
+      }
+      // 2. Part without trailing digits/symbol (e.g. "monikanegi.6" -> "monikanegi")
+      const noTrailing = clean.replace(/[._]\d+$/, '');
+      if (noTrailing && noTrailing.length >= 3 && !candidates.includes(noTrailing)) {
+        candidates.push(noTrailing);
+      }
+      // 3. Characters stripped of dots/underscores
+      const stripped = clean.replace(/[._]/g, '');
+      if (stripped && stripped.length >= 3 && !candidates.includes(stripped)) {
+        candidates.push(stripped);
+      }
+    }
+    return candidates;
+  }
+
+  async function unfollowViaDom(targetUsername) {
+    const dialog = getFollowingDialog();
+    if (!dialog) {
+      return { needsDialog: true };
+    }
+
+    const searchInput = getSearchInput(dialog);
+    if (!searchInput) {
+      return { failed: true, message: 'Search box not found in Following modal' };
+    }
+
+    const queries = getSearchQueryCandidates(targetUsername);
+    let userRow = null;
+    let followingBtn = null;
+    let sawExplicitNoResults = false;
+
+    // Try primary username first, then fallback to symbol-tolerant prefix queries
+    for (let qIdx = 0; qIdx < queries.length; qIdx++) {
+      if (isPaused) return { paused: true };
+      const currentQuery = queries[qIdx];
+
+      // 1. Clear search input safely
+      await clearSearchInput(searchInput);
+
+      // 2. Focus and enter current query candidate
+      try { searchInput.focus(); } catch(e) {}
+      setReactInputValue(searchInput, currentQuery);
+
+      // 3. Dynamic Search Polling (Up to 5.0 seconds per query candidate)
+      const pollStart = Date.now();
+      const maxPollTime = 5000;
+      const minDebounceWait = 2200;
+
+      while (Date.now() - pollStart < maxPollTime) {
+        if (isPaused) return { paused: true };
+
+        userRow = findUserRow(dialog, targetUsername);
+        if (userRow) {
+          const btn = Array.from(userRow.querySelectorAll('button')).find(b => {
+            const txt = (b.innerText || '').trim().toLowerCase();
+            return txt === 'following' || (txt.includes('following') && !txt.includes('not'));
+          });
+          if (btn) {
+            followingBtn = btn;
+            break;
+          }
+        }
+
+        const hasSpinner = dialog.querySelector('svg circle, div[role="progressbar"], div[aria-label*="Loading"]') !== null;
+        const elapsed = Date.now() - pollStart;
+
+        // If after 2.2s we see explicit "no results found" and no spinner, break to try next candidate query
+        if (elapsed >= minDebounceWait && !hasSpinner) {
+          const text = (dialog.innerText || '').toLowerCase();
+          if (text.includes('no results found') || text.includes('no users found')) {
+            sawExplicitNoResults = true;
+            break;
+          }
+        }
+
+        await sleep(250);
+      }
+
+      if (userRow && followingBtn) {
+        break; // Successfully located user row and button!
+      }
+    }
+
+    if (!userRow) {
+      await clearSearchInput(searchInput);
+      if (sawExplicitNoResults) {
+        return { skipped: true, message: 'Not found in Following list (already unfollowed)' };
+      }
+      return { failed: true, message: 'Search timed out (server did not return user row)' };
+    }
+
+    if (!followingBtn) {
+      const isAlreadyFollow = Array.from(userRow.querySelectorAll('button')).some(b => {
+        const txt = (b.innerText || '').trim().toLowerCase();
+        return txt === 'follow';
+      });
+      await clearSearchInput(searchInput);
+      if (isAlreadyFollow) {
+        return { skipped: true, message: 'Already unfollowed (button says Follow)' };
+      }
+      return { failed: true, message: 'Following button not found in row' };
+    }
+
+    // 4. Click Following button
+    followingBtn.click();
+
+    // 5. Poll for confirmation dialog
+    let confirmBtn = null;
+    const confirmStart = Date.now();
+    while (Date.now() - confirmStart < 4000) {
+      if (isPaused) return { paused: true };
+
+      confirmBtn = Array.from(document.querySelectorAll('button')).find(b => {
+        const txt = (b.innerText || '').trim().toLowerCase();
+        return txt === 'unfollow';
+      });
+      if (confirmBtn) break;
+      await sleep(150);
+    }
+
+    if (!confirmBtn) {
+      await clearSearchInput(searchInput);
+      return { failed: true, message: 'Confirmation popup did not appear' };
+    }
+
+    // 6. Click Unfollow in popup
+    confirmBtn.click();
+
+    // 7. Verify button switches to 'Follow'
+    const verifyStart = Date.now();
+    while (Date.now() - verifyStart < 4000) {
+      const btnTxt = (followingBtn.innerText || '').trim().toLowerCase();
+      if (btnTxt === 'follow') break;
+      await sleep(200);
+    }
+
+    // 8. Clean up for next profile
+    await clearSearchInput(searchInput);
+
+    return { success: true };
+  }
+
+  async function runNext() {
+    if (isPaused || currentIndex >= targets.length) return;
+    const t = targets[currentIndex];
+
+    statusText.innerText = 'Unfollowing @' + t.username + ' (' + (currentIndex + 1) + '/' + targets.length + ')...';
+
+    // 1. Try Direct API First (High speed, zero DOM search latency)
+    let res = await unfollowViaApi(t);
+
+    // 2. Seamless Fallback to DOM Automation if API cannot run
+    if (res && res.fallbackToDom) {
+      statusText.innerText = 'Searching @' + t.username + ' in Following modal (' + (currentIndex + 1) + '/' + targets.length + ')...';
+      res = await unfollowViaDom(t.username);
+    }
+
+    if (res && res.needsDialog) {
+      guideMsg.style.display = 'block';
+      statusText.innerHTML = '<span style="color:#ff7b72;">Please open your Following list to start!</span>';
+      toggleBtn.innerText = '▶ Start Auto-Pilot';
+      isPaused = true;
+      return;
+    }
+
+    if (!res) res = { failed: true, message: 'No response' };
+
+    if (res.blocked) {
+      statusText.innerHTML = '<span style="color:#ff7b72;">⚠️ ' + res.message + '</span>';
+      toggleBtn.innerText = '▶ Resume';
+      isPaused = true;
+      return;
+    }
+
+    if (res.success) {
+      successCount++;
+      guideMsg.style.display = 'none';
+      statusText.innerHTML = '<span style="color:#3fb950;">✓ Unfollowed @' + t.username + '</span> (' + successCount + ' total)';
+    } else if (res.skipped) {
+      skipCount++;
+      statusText.innerHTML = '<span style="color:#8b949e;">⏭ @' + t.username + ': ' + res.message + '</span>';
+    } else {
+      failCount++;
+      statusText.innerHTML = '<span style="color:#ff7b72;">✗ @' + t.username + ': ' + (res.message || 'Failed') + '</span>';
+    }
+
+    currentIndex++;
+    updateCounts();
+    progBar.style.width = Math.round((currentIndex / targets.length) * 100) + '%';
+
+    if (currentIndex < targets.length) {
+      const delay = getDelay();
+      let remaining = Math.round(delay / 1000);
+      const timer = setInterval(() => {
+        if (isPaused) { clearInterval(timer); return; }
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(timer);
+          runNext();
+        } else {
+          statusText.innerText = '✓ ' + successCount + ' unfollowed | Next in ' + remaining + 's...';
+        }
+      }, 1000);
+    } else {
+      statusText.innerHTML = '<span style="color:#3fb950; font-weight:700;">🎉 Complete!</span> ' + successCount + ' unfollowed, ' + skipCount + ' skipped, ' + failCount + ' failed.';
+      toggleBtn.disabled = true;
+    }
+  }
+
+  if (openFollowingBtn) {
+    openFollowingBtn.onclick = () => {
+      const viewer = getViewerUsername();
+      if (viewer) {
+        window.location.href = '/' + viewer + '/following/';
+      } else {
+        const link = document.querySelector('a[href*="/following/"]');
+        if (link) link.click();
+        else alert('Please navigate to your Instagram profile and click "Following" to open the list.');
+      }
+    };
+  }
+
+  toggleBtn.onclick = () => {
+    if (!isPaused && currentIndex === 0) {
+      toggleBtn.innerText = '⏸ Pause';
+      isPaused = false;
+      runNext();
+    } else if (isPaused) {
+      isPaused = false;
+      toggleBtn.innerText = '⏸ Pause';
+      runNext();
+    } else {
+      isPaused = true;
+      toggleBtn.innerText = '▶ Resume';
+      statusText.innerText = 'Paused';
+    }
+  };
+
+  stopBtn.onclick = () => { isPaused = true; panel.remove(); };
+  closeBtn.onclick = () => panel.remove();
+})();`;
+
+      navigator.clipboard.writeText(script).then(() => {
+        showToast('Auto-Pilot In-Browser Script copied to clipboard!');
+      });
+    }
+
+    // Bulk Follow Modal Handlers
+    function openBulkFollowModal() {
+      const modal = document.getElementById('bulkFollowModal');
+      if (modal) modal.style.display = 'flex';
+      const fansCountEl = document.getElementById('bulkFansCount');
+      if (fansCountEl) fansCountEl.innerText = stats.fans || 0;
+      updateBulkFollowCount();
+    }
+
+    function closeBulkFollowModal() {
+      const modal = document.getElementById('bulkFollowModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function getBulkFollowCleanUsernames() {
+      const ta = document.getElementById('bulkFollowTextarea');
+      const val = ta ? ta.value : '';
+      return parseUsernamesList(val).usernames;
+    }
+
+    function updateBulkFollowCount() {
+      const clean = getBulkFollowCleanUsernames();
+      const countEl = document.getElementById('bulkFollowCountText');
+      if (countEl) {
+        countEl.innerText = `${clean.length} valid username(s) entered`;
+        countEl.style.color = clean.length > 0 ? '#58a6ff' : '#8b949e';
+      }
+    }
+
+    function loadFansIntoBulkFollow() {
+      const fans = allUsers.filter(u => u.followsViewer && !u.followedByViewer);
+      if (fans.length === 0) {
+        showToast('No un-reciprocated fans found in current dataset!');
+        return;
+      }
+      const ta = document.getElementById('bulkFollowTextarea');
+      if (ta) {
+        const fanNames = fans.map(u => u.username).join('\n');
+        if (ta.value.trim()) {
+          ta.value = ta.value.trim() + '\n' + fanNames;
+        } else {
+          ta.value = fanNames;
+        }
+        cleanBulkFollowTextarea();
+        showToast(`Loaded ${fans.length} fan username(s) into follow queue!`);
+      }
+    }
+
+    function cleanBulkFollowTextarea() {
+      const clean = getBulkFollowCleanUsernames();
+      const ta = document.getElementById('bulkFollowTextarea');
+      if (ta) {
+        ta.value = clean.join('\n');
+        updateBulkFollowCount();
+      }
+    }
+
+    function clearBulkFollowTextarea() {
+      const ta = document.getElementById('bulkFollowTextarea');
+      if (ta) {
+        ta.value = '';
+        updateBulkFollowCount();
+      }
+    }
+
+    function copyCleanedUsernames() {
+      const clean = getBulkFollowCleanUsernames();
+      if (clean.length === 0) {
+        alert('Please enter at least one username first.');
+        return;
+      }
+      navigator.clipboard.writeText(clean.join('\n')).then(() => {
+        showToast(`Copied ${clean.length} cleaned username(s) to clipboard!`);
+      });
+    }
+
+    function downloadCleanedUsernames() {
+      const clean = getBulkFollowCleanUsernames();
+      if (clean.length === 0) {
+        alert('Please enter at least one username first.');
+        return;
+      }
+      const blob = new Blob([clean.join('\n')], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `follow_targets_${Date.now()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Downloaded ${clean.length} username(s) in follow_targets.txt`);
+    }
+
+    function copyBulkFollowScript() {
+      const clean = getBulkFollowCleanUsernames();
+      if (clean.length === 0) {
+        alert('Please enter at least one username (one per line) to generate the follow script.');
+        return;
+      }
+      const speed = document.getElementById('bulkFollowSpeed') ? document.getElementById('bulkFollowSpeed').value : 'normal';
+      const script = generateBulkFollowScript(clean, speed);
+
+      navigator.clipboard.writeText(script).then(() => {
+        const btn = document.getElementById('copyBulkFollowScriptBtn');
+        if (btn) {
+          btn.innerText = '✓ Copied Follow Script! Paste in Instagram Console';
+          btn.style.background = '#238636';
+          setTimeout(() => {
+            btn.innerText = '🚀 Copy In-Browser Follow Script';
+            btn.style.background = 'var(--accent-gradient)';
+          }, 4500);
+        }
+        showToast(`Follow bot script copied with ${clean.length} target(s)!`);
+      }).catch(() => {
+        prompt('Copy the Bulk Follow script below:', script);
+      });
+    }
+
+    // Initialize on window load
+    window.addEventListener('DOMContentLoaded', initDashboard);
+  </script>
+</body>
+</html>

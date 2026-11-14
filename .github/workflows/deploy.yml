@@ -1,0 +1,93 @@
+name: CI/CD Pipeline - InstaExtract Web Platform
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # Required for AWS OIDC federation
+  contents: read    # Required to checkout the repository
+
+jobs:
+  validate-and-test:
+    name: Lint, Test & CDK Synth
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: cdk/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify Backend Lambda Syntax
+        run: |
+          python3 -m py_compile backend/lambda/session_handler.py
+          echo "✅ Backend Lambda syntax valid"
+
+      - name: Install CDK Dependencies
+        working-directory: cdk
+        run: npm ci
+
+      - name: Build CDK TypeScript
+        working-directory: cdk
+        run: npm run build
+
+      - name: Synthesize CloudFormation Template
+        working-directory: cdk
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID || '851725215059' }}
+          CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+        run: npx cdk synth
+
+  deploy:
+    name: Deploy to AWS
+    needs: validate-and-test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: cdk/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Authenticate to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GitHubActions-InstaExtractDeploy
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+      - name: Install CDK Dependencies
+        working-directory: cdk
+        run: npm ci
+
+      - name: Deploy Stack via AWS CDK
+        working-directory: cdk
+        run: |
+          npx cdk deploy --require-approval never --all

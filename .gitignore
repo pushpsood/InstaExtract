@@ -1,3 +1,26 @@
 cmake-build-debug
 main
 .idea
+.DS_Store
+
+# Sensitive cURL & Cache
+config/curlRequest*.txt
+cache_*.json
+unfollow_targets*.json
+profiles.html
+*.local.txt
+
+# CDK & Node
+cdk/node_modules/
+cdk/cdk.out/
+cdk/bin/*.js
+cdk/bin/*.d.ts
+cdk/bin/*.js.map
+cdk/lib/*.js
+cdk/lib/*.d.ts
+cdk/lib/*.js.map
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

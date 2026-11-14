@@ -3,10 +3,11 @@
 
 #include <vector>
 #include <string>
+#include "../model/InstagramUser.h"
 
 class FollowersService {
 public:
-    static std::vector<std::string> fetchFollowers();
+    static std::vector<InstagramUser> fetchFollowers();
 };
 
 #endif // FOLLOWERS_SERVICE_H

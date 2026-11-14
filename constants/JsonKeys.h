@@ -12,6 +12,13 @@ public:
     static const std::string GROUPS_KEY;
     static const std::string FACEPILE_KEY;
     static const std::string MAX_ID;
+    static const std::string IS_PRIVATE_KEY;
+    static const std::string FULL_NAME_KEY;
+    static const std::string IS_VERIFIED_KEY;
+    static const std::string PROFILE_PIC_URL_KEY;
+    static const std::string HAS_ANONYMOUS_PROFILE_PICTURE_KEY;
+    static const std::string LATEST_REEL_MEDIA_KEY;
+    static const std::string PK_KEY;
 };
 
 #endif // JSONKEYS_H
