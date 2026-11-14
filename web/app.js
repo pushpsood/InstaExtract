@@ -349,6 +349,152 @@ function generateBulkFollowScript(usernames, speed) {
     }
   }
 
+  function getDtsgToken() {
+    try {
+      const el = document.querySelector('input[name="fb_dtsg"]');
+      if (el && el.value) return el.value;
+    } catch(e) {}
+    try {
+      const m = document.documentElement.innerHTML.match(/"DTSGInitialData",\[\],\{"token":"([^"]+)"\}/) ||
+                document.documentElement.innerHTML.match(/"dtsg":\{"token":"([^"]+)"/) ||
+                document.documentElement.innerHTML.match(/"token":"([A-Za-z0-9_-]{12,})"/);
+      if (m && m[1]) return m[1];
+    } catch(e) {}
+    return '';
+  }
+
+  function getLsdToken() {
+    try {
+      const el = document.querySelector('input[name="lsd"]');
+      if (el && el.value) return el.value;
+    } catch(e) {}
+    try {
+      const m = document.documentElement.innerHTML.match(/"LSD",\[\],\{"token":"([^"]+)"\}/);
+      if (m && m[1]) return m[1];
+    } catch(e) {}
+    return '';
+  }
+
+  function getJazoest(token) {
+    if (!token) return '';
+    let sum = 0;
+    for (let i = 0; i < token.length; i++) {
+      sum += token.charCodeAt(i);
+    }
+    return '2' + sum;
+  }
+
+  async function tryNativeModuleFollow(userId) {
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const timeout = setTimeout(() => {
+        if (!done) { done = true; reject(new Error('native_timeout')); }
+      }, 3500);
+
+      // Attempt 1: window.requireInterop
+      try {
+        if (typeof window.requireInterop === 'function') {
+          const api = window.requireInterop('PolarisSharedAPI');
+          if (api && typeof api.followUser === 'function') {
+            api.followUser(userId).then(res => {
+              if (!done) { done = true; clearTimeout(timeout); resolve(res); }
+            }).catch(err => {
+              if (!done) { done = true; clearTimeout(timeout); reject(err); }
+            });
+            return;
+          }
+        }
+      } catch(e) {}
+
+      // Attempt 2: window.requireLazy
+      try {
+        if (typeof window.requireLazy === 'function') {
+          window.requireLazy(['PolarisSharedAPI'], function(api) {
+            if (api && typeof api.followUser === 'function') {
+              api.followUser(userId).then(res => {
+                if (!done) { done = true; clearTimeout(timeout); resolve(res); }
+              }).catch(err => {
+                if (!done) { done = true; clearTimeout(timeout); reject(err); }
+              });
+            } else {
+              if (!done) { done = true; clearTimeout(timeout); reject(new Error('no_api')); }
+            }
+          });
+          return;
+        }
+      } catch(e) {}
+
+      if (!done) { done = true; clearTimeout(timeout); reject(new Error('no_require')); }
+    });
+  }
+
+  async function domFollowFallback(username) {
+    log('Attempting DOM-level follow fallback for @' + username + '...', '#8b949e');
+    return new Promise((resolve) => {
+      let resolved = false;
+      const win = window.open('/' + encodeURIComponent(username) + '/', 'ief_tab_' + Date.now(), 'width=460,height=580,top=120,left=120');
+      if (!win) {
+        resolve({ success: false, error: 'Popup blocked by browser' });
+        return;
+      }
+
+      const finish = (result) => {
+        if (resolved) return;
+        resolved = true;
+        try { win.close(); } catch(e) {}
+        resolve(result);
+      };
+
+      let interval = setInterval(() => {
+        try {
+          if (win.closed) {
+            clearInterval(interval);
+            finish({ success: false, error: 'Window closed' });
+            return;
+          }
+          const doc = win.document;
+          if (!doc) return;
+
+          const buttons = Array.from(doc.querySelectorAll('button'));
+          const followBtn = buttons.find(b => {
+            const txt = (b.innerText || '').trim().toLowerCase();
+            return txt === 'follow' || txt === 'follow back';
+          });
+          const alreadyDone = buttons.find(b => {
+            const txt = (b.innerText || '').trim().toLowerCase();
+            return txt === 'following' || txt === 'requested';
+          });
+
+          if (alreadyDone) {
+            clearInterval(interval);
+            const txt = (alreadyDone.innerText || '').trim().toLowerCase();
+            finish({ success: true, mode: txt === 'requested' ? 'requested' : 'followed' });
+            return;
+          }
+
+          if (followBtn) {
+            followBtn.click();
+            clearInterval(interval);
+            setTimeout(() => {
+              try {
+                const updatedButtons = Array.from(win.document.querySelectorAll('button'));
+                const isReq = updatedButtons.some(b => (b.innerText || '').trim().toLowerCase() === 'requested');
+                finish({ success: true, mode: isReq ? 'requested' : 'followed' });
+              } catch(e) {
+                finish({ success: true, mode: 'followed' });
+              }
+            }, 1200);
+          }
+        } catch(e) {}
+      }, 400);
+
+      setTimeout(() => {
+        clearInterval(interval);
+        finish({ success: false, error: 'DOM operation timed out' });
+      }, 10000);
+    });
+  }
+
   function getDelay() {
     const s = speedSelect ? speedSelect.value : 'normal';
     if (s === 'fast') return Math.floor(Math.random() * 4000) + 5000;
@@ -448,7 +594,8 @@ function generateBulkFollowScript(usernames, speed) {
         }
       });
       if (res.ok) {
-        const text = await res.text();
+        let text = await res.text();
+        if (text && text.startsWith('for (;;);')) text = text.substring(9).trim();
         if (text && !text.startsWith('<')) {
           const d = JSON.parse(text);
           return {
@@ -465,10 +612,28 @@ function generateBulkFollowScript(usernames, speed) {
     return null;
   }
 
-  async function sendFollowRequest(userId, csrf) {
+  async function sendFollowRequest(userId, username, csrf) {
     if (!userId) return { error: 'Missing userId' };
     const rolloutHash = getRolloutHash();
+    const dtsg = getDtsgToken();
+    const lsd = getLsdToken();
+    const jazoestToken = dtsg || lsd || csrf;
+    const jazoest = getJazoest(jazoestToken);
 
+    // Layer 1: Native Instagram internal module call
+    try {
+      log('Attempting native internal Polaris follow call...', '#8b949e');
+      const nativeRes = await tryNativeModuleFollow(userId);
+      if (nativeRes) {
+        log('Native follow call dispatched successfully (' + JSON.stringify(nativeRes) + ')', '#3fb950');
+        if (nativeRes.result === 'requested') return { success: true, mode: 'requested' };
+        return { success: true, mode: 'followed' };
+      }
+    } catch(e) {
+      log('Native module bypass (' + (e.message || 'not loaded') + '), falling back to REST/GraphQL...', '#8b949e');
+    }
+
+    // Layer 2: Authenticated REST endpoint with complete Meta payload
     const headers = {
       'x-csrftoken': csrf,
       'x-instagram-ajax': rolloutHash,
@@ -479,22 +644,29 @@ function generateBulkFollowScript(usernames, speed) {
       'content-type': 'application/x-www-form-urlencoded'
     };
 
-    const body = 'container_module=profile&include_follow_friction_check=true&nav_chain=PolarisFeedRoot%3AfeedPage%3A1%3Aunexpected&user_id=' + encodeURIComponent(userId);
+    const bodyParams = new URLSearchParams();
+    bodyParams.append('container_module', 'profile');
+    bodyParams.append('nav_chain', 'PolarisFeedRoot:feedPage:1:unexpected');
+    bodyParams.append('user_id', userId);
+    bodyParams.append('include_follow_friction_check', 'true');
+    if (dtsg) bodyParams.append('fb_dtsg', dtsg);
+    if (jazoest) bodyParams.append('jazoest', jazoest);
 
     try {
-      log('Dispatching follow mutation to userId: ' + userId + '...', '#8b949e');
+      log('Dispatching REST follow mutation to userId: ' + userId + '...', '#8b949e');
       const res = await fetch('/api/v1/friendships/create/' + encodeURIComponent(userId) + '/', {
         method: 'POST',
         credentials: 'include',
         headers: headers,
-        body: body
+        body: bodyParams.toString()
       });
 
-      const text = await res.text();
+      let text = await res.text();
+      if (text.startsWith('for (;;);')) text = text.substring(9).trim();
       let data = null;
       try { data = JSON.parse(text); } catch(e) {}
 
-      log('Mutation response HTTP ' + res.status + (data && data.status ? ' (' + data.status + ')' : ''), '#8b949e');
+      log('REST response HTTP ' + res.status + (data && data.status ? ' (' + data.status + ')' : ''), '#8b949e');
 
       if (res.status === 429 || (data && (data.message === 'feedback_required' || data.spam))) {
         return { rateLimited: true };
@@ -509,44 +681,71 @@ function generateBulkFollowScript(usernames, speed) {
         if (data.result === 'requested') return { success: true, mode: 'requested' };
         if (data.status === 'ok') return { success: true, mode: 'followed' };
       }
+    } catch(e) {
+      log('REST endpoint exception: ' + e.message, '#ff7b72');
+    }
 
-      // Fallback endpoint if primary returned non-JSON
-      if (!data || !res.ok) {
-        log('Primary endpoint unconfirmed, checking alternative endpoint...', '#8b949e');
-        const res2 = await fetch('/api/v1/web/friendships/' + encodeURIComponent(userId) + '/follow/', {
+    // Layer 3: Native Web GraphQL Mutation (doc_id: 27767812149509802)
+    try {
+      log('Trying GraphQL follow mutation...', '#8b949e');
+      const gqlParams = new URLSearchParams();
+      gqlParams.append('doc_id', '27767812149509802');
+      gqlParams.append('fb_api_req_friendly_name', 'usePolarisFollowUserFollowMutation');
+      gqlParams.append('variables', JSON.stringify({
+        data: { include_follow_friction_check: true },
+        target_user_id: userId
+      }));
+      gqlParams.append('server_timestamps', 'true');
+      if (dtsg) gqlParams.append('fb_dtsg', dtsg);
+      if (jazoest) gqlParams.append('jazoest', jazoest);
+
+      const gqlEndpoints = ['/api/graphql', '/graphql/query'];
+      for (const ep of gqlEndpoints) {
+        const gqlRes = await fetch(ep, {
           method: 'POST',
           credentials: 'include',
-          headers: headers,
-          body: body
+          headers: {
+            ...headers,
+            'x-fb-friendly-name': 'usePolarisFollowUserFollowMutation'
+          },
+          body: gqlParams.toString()
         });
-        const text2 = await res2.text();
-        let data2 = null;
-        try { data2 = JSON.parse(text2); } catch(e) {}
 
-        if (res2.ok && data2) {
-          if (data2.friendship_status) {
-            if (data2.friendship_status.following === true) return { success: true, mode: 'followed' };
-            if (data2.friendship_status.outgoing_request === true) return { success: true, mode: 'requested' };
+        if (gqlRes.ok) {
+          let gText = await gqlRes.text();
+          if (gText.startsWith('for (;;);')) gText = gText.substring(9).trim();
+          let gData = null;
+          try { gData = JSON.parse(gText); } catch(e) {}
+          if (gData && gData.data) {
+            const fs = gData.data.xdt_create_friendship?.friendship_status;
+            if (fs) {
+              if (fs.following === true) return { success: true, mode: 'followed' };
+              if (fs.outgoing_request === true) return { success: true, mode: 'requested' };
+            }
           }
-          if (data2.result === 'following') return { success: true, mode: 'followed' };
-          if (data2.result === 'requested') return { success: true, mode: 'requested' };
-          if (data2.status === 'ok') return { success: true, mode: 'followed' };
         }
       }
-
-      // Verification check: poll friendship status
-      await sleep(1000);
-      const verify = await checkFriendshipStatus(userId, csrf);
-      if (verify) {
-        if (verify.following) return { success: true, mode: 'followed' };
-        if (verify.outgoing_request) return { success: true, mode: 'requested' };
-      }
-
-      return { error: (data && data.message) || ('HTTP ' + res.status) };
     } catch(e) {
-      log('Follow request exception: ' + e.message, '#ff7b72');
-      return { error: e.message };
+      log('GraphQL follow exception: ' + e.message, '#ff7b72');
     }
+
+    // Layer 4: Verification check - check if friendship status changed to following or requested
+    await sleep(800);
+    const verify = await checkFriendshipStatus(userId, csrf);
+    if (verify) {
+      if (verify.following) return { success: true, mode: 'followed' };
+      if (verify.outgoing_request) return { success: true, mode: 'requested' };
+    }
+
+    // Layer 5: DOM-assisted fallback window if API was shielded
+    if (username) {
+      const domResult = await domFollowFallback(username);
+      if (domResult && domResult.success) {
+        return domResult;
+      }
+    }
+
+    return { error: 'Action unconfirmed by server' };
   }
 
   async function processNext() {
@@ -614,7 +813,7 @@ function generateBulkFollowScript(usernames, speed) {
         statusText.innerText = 'Sending Follow Request to @' + username + '...';
         substatusText.innerText = 'Dispatching authenticated friendship mutation...';
 
-        const outcome = await sendFollowRequest(info.userId, csrf);
+        const outcome = await sendFollowRequest(info.userId, username, csrf);
 
         if (outcome.rateLimited) {
           statusText.innerHTML = '<span style="color:#ff7b72;">⚠️ Instagram Action Limit Detected</span>';
