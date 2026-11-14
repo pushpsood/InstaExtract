@@ -339,245 +339,113 @@ function generateBulkFollowScript(usernames, speed) {
     }
   }
 
-  function navigateToProfile(username) {
-    const cleanUser = String(username).replace(/^@+/, '').trim().toLowerCase();
-    const targetPath = '/' + encodeURIComponent(cleanUser) + '/';
-    const currentPath = window.location.pathname.replace(new RegExp('/+$'), '').toLowerCase() + '/';
-    if (currentPath === targetPath) {
-      return;
-    }
+  function getViewerId() {
+    const m = document.cookie.match(/ds_user_id=([0-9]+)/);
+    return m ? m[1] : '';
+  }
 
-    // Trigger SPA client-side routing via synthetic anchor click (React router delegation)
-    const a = document.createElement('a');
-    a.href = targetPath;
-    a.style.display = 'none';
-    document.body.appendChild(a);
+  async function resolveTargetUser(username) {
+    const cleanUser = String(username || '').replace(/^@+/, '').trim().toLowerCase();
+    if (!cleanUser) return { invalid: true };
 
     try {
-      const evt = new MouseEvent('click', {
-        bubbles: true,
-        cancelable: true,
-        view: window
+      const res = await fetch('/' + encodeURIComponent(cleanUser) + '/');
+      const html = await res.text();
+
+      // Check explicit 404
+      if (html.includes('PolarisErrorRoot') && !html.includes('PolarisProfilePostsTabRoot')) {
+        return { notFound: true, username: cleanUser };
+      }
+
+      // Extract user id from SSR profile payload
+      const m = html.match(/"profile_id":"([0-9]+)"/) ||
+                html.match(/"page_id":"profilePage_([0-9]+)"/) ||
+                html.match(/"id":"([0-9]{5,20})"/);
+
+      if (m && m[1]) {
+        return {
+          success: true,
+          userId: m[1],
+          username: cleanUser
+        };
+      }
+
+      if (html.includes('PolarisErrorRoot') || res.status === 404) {
+        return { notFound: true, username: cleanUser };
+      }
+
+      return { notFound: true, username: cleanUser };
+    } catch(e) {
+      return { error: e.message, username: cleanUser };
+    }
+  }
+
+  async function checkFriendshipStatus(userId, csrf) {
+    try {
+      const res = await fetch('/api/v1/friendships/show/' + encodeURIComponent(userId) + '/', {
+        headers: {
+          'x-csrftoken': csrf,
+          'x-ig-app-id': '936619743392459',
+          'x-asbd-id': '129477',
+          'x-requested-with': 'XMLHttpRequest'
+        }
       });
-      a.dispatchEvent(evt);
+      if (res.ok) {
+        const d = await res.json();
+        return {
+          following: !!d.following,
+          outgoing_request: !!d.outgoing_request,
+          is_private: !!d.is_private
+        };
+      }
     } catch(e) {}
-
-    try {
-      if (typeof a.click === 'function') a.click();
-    } catch(e) {}
-
-    a.remove();
-  }
-
-  function getElementLabel(el) {
-    if (!el) return '';
-    const aria = el.getAttribute('aria-label') || '';
-    const title = el.getAttribute('title') || '';
-    const text = (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' ');
-    const childAria = (el.querySelector('[aria-label]') || {}).ariaLabel || '';
-    return (aria + ' ' + title + ' ' + text + ' ' + childAria).trim();
-  }
-
-  function classifyButtonLabel(label) {
-    if (!label) return null;
-    if (/\\d+[\\s,.]*(followers?|following)/i.test(label)) return null;
-
-    const lower = label.toLowerCase();
-
-    // Check self profile
-    if (/\\b(edit profile|view archive|ad tools|settings|saved|editar perfil|modifier profil|profil bearbeiten)\\b/i.test(lower)) {
-      return 'self_profile';
-    }
-
-    // Check already following
-    if (/\\b(following|siguiendo|abonné|abonné\\(e\\)|gefolgt|seguito|segui già|팔로잉|フォロー中|已关注|seguindo|takip ediliyor)\\b/i.test(lower)) {
-      return 'already_following';
-    }
-
-    // Check already requested (pending follow request)
-    if (/\\b(requested|request sent|pending request|cancel request|solicitado|demandé|demande envoyée|angefordert|richiesta inviata|solicitada|solicitud enviada|solicitação enviada|요청됨|リクエスト済み|已请求|gesendet)\\b/i.test(lower)) {
-      return 'already_requested';
-    }
-
-    // Check ready to follow
-    if (/\\b(follow|follow back|seguir|suivre|folgen|segui|फ़ॉलो|팔로우|フォローする|关注|takip et)\\b/i.test(lower) && !/\\bfollowers\\b/i.test(lower)) {
-      return 'ready_to_follow';
-    }
-
     return null;
   }
 
-  function findProfileFollowButton(targetUser) {
-    const cleanUser = String(targetUser || '').replace(/^@+/, '').trim().toLowerCase();
-
-    // Primary scopes: Profile header, then main content
-    const header = document.querySelector('header') || 
-                   document.querySelector('main header') || 
-                   document.querySelector('main section') ||
-                   document.querySelector('section[role="region"]');
-    const main = document.querySelector('main') || document.body;
-    const scopes = [];
-    if (header) scopes.push(header);
-    scopes.push(main);
-
-    for (const scope of scopes) {
-      const candidates = Array.from(scope.querySelectorAll('button, div[role="button"], a[role="button"]'));
-
-      for (const btn of candidates) {
-        if (btn.closest('#insta-follow-suite')) continue;
-        if (btn.closest('nav') || btn.closest('[role="navigation"]')) continue;
-        if (btn.closest('article')) continue;
-        if (btn.closest('footer')) continue;
-
-        const href = btn.getAttribute('href') || '';
-        if (href.includes('/followers') || href.includes('/following') || href.includes('/saved')) continue;
-
-        const label = getElementLabel(btn);
-        const status = classifyButtonLabel(label);
-        if (status) {
-          return { element: btn, status, label };
-        }
-      }
-    }
-
-    // Secondary leaf search (catches nested spans or text inside divs)
-    const allLeaves = Array.from(main.querySelectorAll('button, div[role="button"], a[role="button"], span, div'));
-    for (const el of allLeaves) {
-      if (el.children.length > 0) continue;
-      if (el.closest('#insta-follow-suite') || el.closest('nav') || el.closest('article') || el.closest('footer')) continue;
-
-      const text = (el.innerText || el.textContent || '').trim();
-      const status = classifyButtonLabel(text);
-      if (status) {
-        const clickable = el.closest('button, div[role="button"], a[role="button"]') || el;
-        return { element: clickable, status, label: text };
-      }
-    }
-
-    return null;
-  }
-
-  async function waitForProfileRender(username, maxWaitMs = 8000) {
-    const cleanUser = String(username).replace(/^@+/, '').trim().toLowerCase();
-    const start = Date.now();
-    let reNavigated = false;
-
-    while (Date.now() - start < maxWaitMs) {
-      if (isStopped) return null;
-
-      const title = (document.title || '').toLowerCase();
-      const bodyText = document.body ? (document.body.innerText || '') : '';
-
-      // Check genuine 404 / Unavailable profile
-      if (
-        title.includes("profile isn't available") ||
-        title.includes("page not found") ||
-        bodyText.includes("Sorry, this page isn't available") ||
-        bodyText.includes("Profile isn't available") ||
-        bodyText.includes("The link you followed may be broken") ||
-        bodyText.includes("The link may be broken or the profile may have been removed")
-      ) {
-        return { notFound: true };
-      }
-
-      // Check if target user has loaded in DOM or Title
-      const h2Match = Array.from(document.querySelectorAll('h2, h1')).some(h => {
-        const txt = (h.innerText || '').trim().toLowerCase();
-        return txt === cleanUser;
+  async function sendFollowRequest(userId, csrf) {
+    try {
+      const res = await fetch('/api/v1/friendships/create/' + encodeURIComponent(userId) + '/', {
+        method: 'POST',
+        headers: {
+          'x-csrftoken': csrf,
+          'x-ig-app-id': '936619743392459',
+          'x-asbd-id': '129477',
+          'x-requested-with': 'XMLHttpRequest',
+          'content-type': 'application/x-www-form-urlencoded'
+        },
+        body: 'user_id=' + encodeURIComponent(userId)
       });
 
-      const currentPath = window.location.pathname.replace(new RegExp('/+$'), '').toLowerCase();
-      const pathMatches = currentPath === '/' + cleanUser || currentPath.endsWith('/' + cleanUser);
-      const titleMatches = title.includes(cleanUser);
+      const data = await res.json().catch(() => null);
 
-      // If route or title or h2 matches, try finding the follow button
-      if (pathMatches || titleMatches || h2Match) {
-        const btn = findProfileFollowButton(cleanUser);
-        if (btn) return btn;
+      if (res.status === 429 || (data && (data.message === 'feedback_required' || data.spam))) {
+        return { rateLimited: true };
       }
 
-      // Fallback: If after 2.5s navigation hasn't triggered path change, retry navigation
-      if (!reNavigated && Date.now() - start > 2500 && !pathMatches) {
-        reNavigated = true;
-        navigateToProfile(username);
-      }
-
-      await sleep(250);
-    }
-
-    // Final attempt before returning timeout
-    const finalBtn = findProfileFollowButton(cleanUser);
-    if (finalBtn) return finalBtn;
-
-    return { timedOut: true };
-  }
-
-  function clickFollowButton(btn) {
-    try {
-      btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } catch(e) {}
-
-    const eventTypes = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
-    for (const type of eventTypes) {
-      try {
-        const evt = new MouseEvent(type, {
-          view: window,
-          bubbles: true,
-          cancelable: true,
-          buttons: 1
-        });
-        btn.dispatchEvent(evt);
-      } catch(e) {}
-    }
-
-    try {
-      if (typeof btn.click === 'function') btn.click();
-    } catch(e) {}
-  }
-
-  async function verifyFollowOutcome(maxWaitMs = 5000) {
-    const start = Date.now();
-    while (Date.now() - start < maxWaitMs) {
-      if (isStopped) return { error: 'Stopped' };
-
-      const dialog = document.querySelector('div[role="dialog"]');
-      if (dialog) {
-        const text = (dialog.innerText || '').toLowerCase();
-        if (text.includes('try again later') || text.includes('action blocked') || text.includes('limit how often') || text.includes('restricted')) {
-          const okBtn = Array.from(dialog.querySelectorAll('button')).find(b => /ok|close|cancel/i.test(b.innerText || ''));
-          if (okBtn) okBtn.click();
-          return { rateLimited: true };
+      if (res.ok && data) {
+        if (data.friendship_status) {
+          if (data.friendship_status.following === true) {
+            return { success: true, mode: 'followed' };
+          }
+          if (data.friendship_status.outgoing_request === true) {
+            return { success: true, mode: 'requested' };
+          }
         }
+        if (data.result === 'following') return { success: true, mode: 'followed' };
+        if (data.result === 'requested') return { success: true, mode: 'requested' };
+        return { success: true, mode: 'followed' };
       }
 
-      const btn = findProfileFollowButton();
-      if (btn) {
-        if (btn.status === 'already_following') {
-          return { success: true, mode: 'followed' };
-        }
-        if (btn.status === 'already_requested') {
-          return { success: true, mode: 'requested' };
-        }
-      }
-
-      await sleep(300);
+      return { error: (data && data.message) || ('HTTP ' + res.status) };
+    } catch(e) {
+      return { error: e.message };
     }
-
-    const finalBtn = findProfileFollowButton();
-    if (finalBtn) {
-      if (finalBtn.status === 'already_following') return { success: true, mode: 'followed' };
-      if (finalBtn.status === 'already_requested') return { success: true, mode: 'requested' };
-      if (finalBtn.status === 'ready_to_follow') {
-        return { error: 'Button did not update to Following or Requested' };
-      }
-    }
-    return { error: 'Could not verify follow state in DOM' };
   }
 
   async function processNext() {
     if (isPaused || isStopped || currentIndex >= targets.length) return;
     const rawUser = targets[currentIndex];
-    const username = String(rawUser || '').replace(/^@+/, '').trim();
+    const username = String(rawUser || '').replace(/^@+/, '').trim().toLowerCase();
 
     if (!username) {
       skippedCount++;
@@ -587,65 +455,73 @@ function generateBulkFollowScript(usernames, speed) {
       return;
     }
 
-    statusText.innerText = 'Opening @' + username + ' (' + (currentIndex + 1) + '/' + targets.length + ')...';
-    substatusText.innerText = 'Navigating profile in active Instagram session...';
+    const csrf = getCsrfToken();
+    if (!csrf) {
+      statusText.innerHTML = '<span style="color:#ff7b72;">❌ Authentication Error</span>';
+      substatusText.innerText = 'Could not find csrftoken cookie. Please make sure you are logged in to instagram.com!';
+      return;
+    }
 
-    navigateToProfile(username);
+    const viewerId = getViewerId();
 
-    const btnInfo = await waitForProfileRender(username, 8000);
+    statusText.innerText = 'Auditing @' + username + ' (' + (currentIndex + 1) + '/' + targets.length + ')...';
+    substatusText.innerText = 'Resolving user profile & friendship status in background...';
 
-    if (!btnInfo || btnInfo.notFound) {
+    const info = await resolveTargetUser(username);
+
+    if (info.invalid || info.notFound) {
       skippedCount++;
       statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Account Not Found</span>';
       substatusText.innerText = '@' + username + ' does not exist or has been disabled.';
-    } else if (btnInfo.timedOut) {
+    } else if (info.error) {
       skippedCount++;
-      statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Load Timeout</span>';
-      substatusText.innerText = '@' + username + ' took too long to load. Skipped to prevent blocking queue.';
-    } else if (btnInfo.status === 'self_profile') {
+      statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Network Error</span>';
+      substatusText.innerText = '@' + username + ': ' + info.error;
+    } else if (viewerId && info.userId === viewerId) {
       skippedCount++;
       statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Your Own Account</span>';
       substatusText.innerText = '@' + username + ' is your logged-in account.';
-    } else if (btnInfo.status === 'already_following') {
-      skippedCount++;
-      statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Already Following</span>';
-      substatusText.innerText = 'You are already following @' + username + '.';
-    } else if (btnInfo.status === 'already_requested') {
-      skippedCount++;
-      statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Already Requested</span>';
-      substatusText.innerText = 'Follow request is already pending for private account @' + username + '.';
-    } else if (btnInfo.status === 'ready_to_follow') {
-      statusText.innerText = 'Clicking Follow on @' + username + '...';
-      substatusText.innerText = 'Dispatching genuine native follow action...';
-
-      clickFollowButton(btnInfo.element);
-
-      const outcome = await verifyFollowOutcome(5000);
-
-      if (outcome.rateLimited) {
-        statusText.innerHTML = '<span style="color:#ff7b72;">⚠️ Instagram Action Limit Detected</span>';
-        substatusText.innerText = 'Instagram cooldown triggered. Pausing 60s to protect account...';
-        await sleep(60000);
-        return;
-      } else if (outcome.success) {
-        if (outcome.mode === 'requested') {
-          requestedCount++;
-          statusText.innerHTML = '<span style="color:#3fb950;">📩 Follow Request Sent @' + username + '</span>';
-          substatusText.innerText = 'Private profile request confirmed in DOM!';
-        } else {
-          followedCount++;
-          statusText.innerHTML = '<span style="color:#3fb950;">✓ Followed @' + username + '</span>';
-          substatusText.innerText = 'Now following (' + followedCount + ' total followed)';
-        }
-      } else {
-        failedCount++;
-        statusText.innerHTML = '<span style="color:#ff7b72;">✗ Action not confirmed for @' + username + '</span>';
-        substatusText.innerText = outcome.error || 'Instagram did not update button state.';
-      }
     } else {
-      skippedCount++;
-      statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Unknown State (@' + username + ')</span>';
-      substatusText.innerText = 'Unhandled button state: ' + btnInfo.status;
+      // Pre-check friendship status
+      statusText.innerText = 'Checking @' + username + '...';
+      const status = await checkFriendshipStatus(info.userId, csrf);
+
+      if (status && status.following) {
+        skippedCount++;
+        statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Already Following</span>';
+        substatusText.innerText = 'You are already following @' + username + '.';
+      } else if (status && status.outgoing_request) {
+        skippedCount++;
+        statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Already Requested</span>';
+        substatusText.innerText = 'Follow request is already pending for private account @' + username + '.';
+      } else {
+        // Send follow request
+        statusText.innerText = 'Sending Follow Request to @' + username + '...';
+        substatusText.innerText = 'Dispatching authenticated friendship mutation...';
+
+        const outcome = await sendFollowRequest(info.userId, csrf);
+
+        if (outcome.rateLimited) {
+          statusText.innerHTML = '<span style="color:#ff7b72;">⚠️ Instagram Action Limit Detected</span>';
+          substatusText.innerText = 'Instagram cooldown triggered. Pausing 60s to protect account...';
+          await sleep(60000);
+          return;
+        } else if (outcome.success) {
+          if (outcome.mode === 'requested') {
+            requestedCount++;
+            statusText.innerHTML = '<span style="color:#58a6ff;">📩 Follow Request Sent @' + username + '</span>';
+            substatusText.innerText = 'Private profile request sent successfully!';
+          } else {
+            followedCount++;
+            statusText.innerHTML = '<span style="color:#3fb950;">✓ Followed @' + username + '</span>';
+            substatusText.innerText = 'Now following (' + followedCount + ' total followed)';
+          }
+        } else {
+          failedCount++;
+          statusText.innerHTML = '<span style="color:#ff7b72;">✗ Action not confirmed for @' + username + '</span>';
+          substatusText.innerText = outcome.error || 'Follow request could not be completed.';
+        }
+      }
     }
 
     currentIndex++;
@@ -687,11 +563,6 @@ function generateBulkFollowScript(usernames, speed) {
 
       toggleBtn.innerText = '✓ Finished';
       toggleBtn.disabled = true;
-
-      try {
-        window.history.pushState({}, '', '/');
-        window.dispatchEvent(new PopStateEvent('popstate'));
-      } catch(e) {}
     }
   }
 

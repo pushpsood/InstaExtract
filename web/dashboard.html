@@ -1621,47 +1621,110 @@
     if (countsText) countsText.innerText = successCount + ' unfollowed (' + currentIndex + '/' + targets.length + ')';
   }
 
-  function setReactInputValue(input, value) {
+  async function setReactInputValue(input, value) {
     if (!input) return;
     try {
       input.focus();
-      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-      if (nativeSetter) {
-        nativeSetter.call(input, value);
-      } else {
-        input.value = value;
+      input.select();
+
+      // 1. Native execCommand: Safest and most reliable for React in modern WebKit (Safari) and Blink (Chrome)
+      let typed = false;
+      try {
+        typed = document.execCommand('insertText', false, value);
+      } catch(e) {}
+
+      // 2. Fallback: Prototype setter with React _valueTracker reset
+      if (!typed || input.value !== value) {
+        if (input._valueTracker) {
+          // Reset tracker to something DIFFERENT from target value so React's updateValueIfChanged returns true!
+          input._valueTracker.setValue(value === '' ? '__cleared__' : '');
+        }
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+        if (nativeSetter) {
+          nativeSetter.call(input, value);
+        } else {
+          input.value = value;
+        }
+        input.dispatchEvent(new InputEvent('input', {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          inputType: value ? 'insertText' : 'deleteContentBackward',
+          data: value || null
+        }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      if (input._valueTracker) {
-        input._valueTracker.setValue(value);
-      }
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      // 3. Dispatch simulated keyboard events to trigger input handlers & debouncers
+      input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'a' }));
+      input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'a' }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+      input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
     } catch(e) {}
   }
 
   async function clearSearchInput(input) {
     if (!input) return;
-    const clearBtn = input.parentElement ? input.parentElement.querySelector('button, [role="button"]') : null;
-    if (clearBtn && clearBtn.querySelector('svg')) {
-      try { clearBtn.click(); } catch(e) {}
+    try {
+      // 1. Click Instagram's built-in clear button if present
+      const parent = input.parentElement || input.closest('div');
+      if (parent) {
+        const clearBtn = Array.from(parent.querySelectorAll('button, [role="button"], div[role="button"], svg')).find(el => {
+          return el !== input && (el.tagName.toLowerCase() === 'svg' || el.querySelector('svg') || (el.getAttribute('aria-label') || '').toLowerCase().includes('clear'));
+        });
+        if (clearBtn) {
+          const targetBtn = clearBtn.closest('button, [role="button"]') || clearBtn;
+          targetBtn.click();
+        }
+      }
+    } catch(e) {}
+
+    // 2. Clear input value using execCommand
+    try {
+      input.focus();
+      input.select();
+      document.execCommand('delete', false, null);
+    } catch(e) {}
+
+    // 3. Fallback: reset tracker and set empty value
+    if (input.value !== '') {
+      try {
+        if (input._valueTracker) {
+          input._valueTracker.setValue('__cleared__');
+        }
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+        if (nativeSetter) {
+          nativeSetter.call(input, '');
+        } else {
+          input.value = '';
+        }
+        input.dispatchEvent(new InputEvent('input', {
+          bubbles: true,
+          composed: true,
+          inputType: 'deleteContentBackward'
+        }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch(e) {}
     }
-    setReactInputValue(input, '');
-    await sleep(350);
+
+    await sleep(400);
   }
 
   function getFollowingDialog() {
     const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
+    // Prioritize dialog containing a search input
+    const withInput = dialogs.find(d => d.querySelector('input'));
+    if (withInput) return withInput;
     return dialogs.find(d => {
-      const input = d.querySelector('input');
-      const text = d.innerText || '';
-      return input || text.includes('Following') || text.includes('Search');
+      const text = (d.innerText || '').toLowerCase();
+      return text.includes('following') || text.includes('search');
     });
   }
 
   function getSearchInput(dialog) {
-    return dialog.querySelector('input[type="text"]') ||
-           dialog.querySelector('input[placeholder*="Search"]') ||
-           dialog.querySelector('input[aria-label*="Search"]') ||
+    return dialog.querySelector('input[placeholder*="Search" i]') ||
+           dialog.querySelector('input[aria-label*="Search" i]') ||
+           dialog.querySelector('input[type="text"]') ||
            dialog.querySelector('input');
   }
 
@@ -1696,8 +1759,9 @@
 
     const spans = Array.from(dialog.querySelectorAll('span, div[dir="auto"], a'));
     for (const el of spans) {
-      const txt = (el.innerText || '').trim().toLowerCase().replace(/✓/g, '').trim();
-      if (txt === targetClean) {
+      const raw = (el.innerText || '').trim().toLowerCase().replace(/✓/g, '').trim();
+      const txt = raw.replace(/^@/, '').trim();
+      if (txt === targetClean || txt.split('\n')[0].replace(/^@/, '').trim() === targetClean) {
         const row = getRowContainer(el, dialog);
         if (row) return row;
       }
@@ -1707,26 +1771,59 @@
   }
 
   async function unfollowViaApi(target) {
-    if (!target || !target.pk) return { fallbackToDom: true };
+    if (!target) return { fallbackToDom: true };
     const csrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
     if (!csrf) return { fallbackToDom: true };
 
+    // Resolve user ID (pk) if missing
+    if (!target.pk && target.username) {
+      try {
+        const infoRes = await fetch('/api/v1/users/web_profile_info/?username=' + encodeURIComponent(target.username), {
+          headers: {
+            'x-ig-app-id': '936619743392459',
+            'x-csrftoken': csrf
+          }
+        });
+        if (infoRes.ok) {
+          const infoData = await infoRes.json().catch(() => ({}));
+          if (infoData && infoData.data && infoData.data.user && infoData.data.user.id) {
+            target.pk = String(infoData.data.user.id);
+          }
+        }
+      } catch(e) {}
+    }
+
+    if (!target.pk) return { fallbackToDom: true };
+
+    const headers = {
+      'content-type': 'application/x-www-form-urlencoded',
+      'x-csrftoken': csrf,
+      'x-ig-app-id': '936619743392459',
+      'x-asbd-id': '129477',
+      'x-requested-with': 'XMLHttpRequest'
+    };
+    const body = 'user_id=' + encodeURIComponent(target.pk);
+
     try {
-      const res = await fetch('/api/v1/friendships/destroy/' + target.pk + '/', {
+      // 1. Try modern Instagram Web endpoint
+      let res = await fetch('/api/v1/web/friendships/' + target.pk + '/unfollow/', {
         method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-          'x-csrftoken': csrf,
-          'x-ig-app-id': '936619743392459',
-          'x-asbd-id': '129477',
-          'x-requested-with': 'XMLHttpRequest'
-        },
-        body: 'user_id=' + encodeURIComponent(target.pk)
+        headers: headers,
+        body: body
       });
+
+      // 2. Fallback to classic endpoint if modern returns 404 or method not allowed
+      if (!res.ok && (res.status === 404 || res.status === 405)) {
+        res = await fetch('/api/v1/friendships/destroy/' + target.pk + '/', {
+          method: 'POST',
+          headers: headers,
+          body: body
+        });
+      }
 
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok && data.status === 'ok') {
+      if (res.ok && (data.status === 'ok' || (data.friendship_status && data.friendship_status.following === false))) {
         return { success: true, via: 'api' };
       }
 
@@ -1794,11 +1891,12 @@
 
       // 2. Focus and enter current query candidate
       try { searchInput.focus(); } catch(e) {}
-      setReactInputValue(searchInput, currentQuery);
+      await setReactInputValue(searchInput, currentQuery);
+      await sleep(350); // Allow React state update & debounce timer to register
 
-      // 3. Dynamic Search Polling (Up to 5.0 seconds per query candidate)
+      // 3. Dynamic Search Polling (Up to 6.5 seconds per query candidate)
       const pollStart = Date.now();
-      const maxPollTime = 5000;
+      const maxPollTime = 6500;
       const minDebounceWait = 2200;
 
       while (Date.now() - pollStart < maxPollTime) {
@@ -1806,9 +1904,9 @@
 
         userRow = findUserRow(dialog, targetUsername);
         if (userRow) {
-          const btn = Array.from(userRow.querySelectorAll('button')).find(b => {
-            const txt = (b.innerText || '').trim().toLowerCase();
-            return txt === 'following' || (txt.includes('following') && !txt.includes('not'));
+          const btn = Array.from(userRow.querySelectorAll('button, div[role="button"]')).find(b => {
+            const txt = ((b.innerText || '') + ' ' + (b.getAttribute('aria-label') || '')).trim().toLowerCase();
+            return txt.includes('following') && !txt.includes('not');
           });
           if (btn) {
             followingBtn = btn;
@@ -1845,7 +1943,7 @@
     }
 
     if (!followingBtn) {
-      const isAlreadyFollow = Array.from(userRow.querySelectorAll('button')).some(b => {
+      const isAlreadyFollow = Array.from(userRow.querySelectorAll('button, div[role="button"]')).some(b => {
         const txt = (b.innerText || '').trim().toLowerCase();
         return txt === 'follow';
       });
@@ -1865,9 +1963,9 @@
     while (Date.now() - confirmStart < 4000) {
       if (isPaused) return { paused: true };
 
-      confirmBtn = Array.from(document.querySelectorAll('button')).find(b => {
+      confirmBtn = Array.from(document.querySelectorAll('button, div[role="button"]')).find(b => {
         const txt = (b.innerText || '').trim().toLowerCase();
-        return txt === 'unfollow';
+        return txt === 'unfollow' || (txt.includes('unfollow') && !txt.includes("don't") && !txt.includes('cancel'));
       });
       if (confirmBtn) break;
       await sleep(150);
@@ -1884,8 +1982,13 @@
     // 7. Verify button switches to 'Follow'
     const verifyStart = Date.now();
     while (Date.now() - verifyStart < 4000) {
-      const btnTxt = (followingBtn.innerText || '').trim().toLowerCase();
-      if (btnTxt === 'follow') break;
+      const rowNow = findUserRow(dialog, targetUsername);
+      const isNowFollow = rowNow && Array.from(rowNow.querySelectorAll('button, div[role="button"]')).some(b => {
+        const txt = (b.innerText || '').trim().toLowerCase();
+        return txt === 'follow';
+      });
+      const oldBtnTxt = (followingBtn.innerText || '').trim().toLowerCase();
+      if (isNowFollow || oldBtnTxt === 'follow') break;
       await sleep(200);
     }
 
@@ -1930,7 +2033,8 @@
     if (res.success) {
       successCount++;
       guideMsg.style.display = 'none';
-      statusText.innerHTML = '<span style="color:#3fb950;">✓ Unfollowed @' + t.username + '</span> (' + successCount + ' total)';
+      const viaTxt = res.via === 'api' ? ' (⚡ instant)' : '';
+      statusText.innerHTML = '<span style="color:#3fb950;">✓ Unfollowed @' + t.username + viaTxt + '</span> (' + successCount + ' total)';
     } else if (res.skipped) {
       skipCount++;
       statusText.innerHTML = '<span style="color:#8b949e;">⏭ @' + t.username + ': ' + res.message + '</span>';
