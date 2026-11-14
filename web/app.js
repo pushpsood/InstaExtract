@@ -264,7 +264,7 @@ function generateBulkFollowScript(usernames, speed) {
   let failedCount = 0;
 
   if (!window.location.hostname.includes('instagram.com')) {
-    alert('Please switch to your active tab on https://www.instagram.com where you are logged in, then paste this script!');
+    alert('Please switch to your active tab on https://www.instagram.com where you are logged in, then paste this script in DevTools console!');
     return;
   }
 
@@ -273,35 +273,36 @@ function generateBulkFollowScript(usernames, speed) {
 
   const panel = document.createElement('div');
   panel.id = 'insta-follow-suite';
-  panel.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:2147483647; background:#161b22; color:#f0f6fc; border:1px solid #30363d; border-radius:14px; padding:20px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width:360px; box-shadow:0 16px 48px rgba(0,0,0,0.85); font-size:13px; line-height:1.5;';
+  panel.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:2147483647; background:#161b22; color:#f0f6fc; border:1px solid #30363d; border-radius:14px; padding:18px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width:380px; box-shadow:0 16px 48px rgba(0,0,0,0.85); font-size:13px; line-height:1.5; box-sizing:border-box;';
   panel.innerHTML = [
-    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">',
+    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">',
       '<div style="display:flex; align-items:center; gap:8px;">',
         '<span style="font-size:18px;">➕</span>',
         '<strong style="background:linear-gradient(45deg,#f09433,#dc2743,#bc1888);-webkit-background-clip:text;-webkit-text-fill-color:transparent; font-size:1.15rem; font-weight:700;">InstaExtract Follow Bot</strong>',
       '</div>',
-      '<button id="ief-close-btn" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:1.4rem;line-height:1;" title="Close">&times;</button>',
+      '<button id="ief-close-btn" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:1.4rem;line-height:1;padding:0;" title="Close">&times;</button>',
     '</div>',
-    '<div style="font-size:0.85rem; color:#8b949e; margin-bottom:10px; display:flex; justify-content:space-between;">',
+    '<div style="font-size:0.84rem; color:#8b949e; margin-bottom:8px; display:flex; justify-content:space-between;">',
       '<span>Queue: <strong>' + targets.length + '</strong> profiles</span>',
       '<span id="ief-counts" style="color:#58a6ff; font-weight:600;">0 followed</span>',
     '</div>',
-    '<div style="background:#21262d; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">',
+    '<div style="background:#21262d; border-radius:8px; padding:6px 10px; margin-bottom:10px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">',
       '<span style="color:#8b949e;">Pacing Speed:</span>',
-      '<select id="ief-speed-select" style="background:#161b22; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer;">',
+      '<select id="ief-speed-select" style="background:#161b22; color:#c9d1d9; border:1px solid #30363d; border-radius:4px; padding:2px 6px; font-size:11px; cursor:pointer;">',
         '<option value="fast"' + (speed === 'fast' ? ' selected' : '') + '>⚡ Fast (5s - 9s)</option>',
         '<option value="normal"' + (speed === 'normal' ? ' selected' : '') + '>🚶 Normal (10s - 18s)</option>',
         '<option value="safe"' + (speed === 'safe' ? ' selected' : '') + '>🛡️ Safe (20s - 35s)</option>',
       '</select>',
     '</div>',
-    '<div id="ief-status" style="font-size:0.88rem; font-weight:600; margin-bottom:4px; color:#58a6ff;">Ready to start follow automation</div>',
-    '<div id="ief-substatus" style="font-size:0.78rem; color:#8b949e; margin-bottom:10px;">Click Start to begin processing queue</div>',
-    '<div style="height:6px; background:#30363d; border-radius:3px; overflow:hidden; margin-bottom:14px;">',
+    '<div id="ief-status" style="font-size:0.86rem; font-weight:600; margin-bottom:2px; color:#58a6ff;">Ready to start follow automation</div>',
+    '<div id="ief-substatus" style="font-size:0.76rem; color:#8b949e; margin-bottom:8px;">Initializing queue of ' + targets.length + ' accounts...</div>',
+    '<div style="height:5px; background:#30363d; border-radius:3px; overflow:hidden; margin-bottom:10px;">',
       '<div id="ief-prog-bar" style="height:100%; width:0%; background:linear-gradient(45deg,#f09433,#dc2743,#bc1888); transition:width 0.3s;"></div>',
     '</div>',
+    '<div id="ief-log" style="height:95px; overflow-y:auto; background:#0d1117; border:1px solid #30363d; border-radius:6px; padding:6px 8px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:#8b949e; margin-bottom:10px; line-height:1.45; word-break:break-word;"></div>',
     '<div style="display:flex; gap:8px;">',
-      '<button id="ief-toggle-btn" style="flex:1; background:linear-gradient(45deg,#f09433,#dc2743,#bc1888); color:white; border:none; border-radius:6px; padding:9px; font-weight:700; cursor:pointer;">▶ Start Auto-Pilot</button>',
-      '<button id="ief-stop-btn" style="background:#21262d; color:#ff7b72; border:1px solid #30363d; border-radius:6px; padding:9px 14px; cursor:pointer;">Stop</button>',
+      '<button id="ief-toggle-btn" style="flex:1; background:linear-gradient(45deg,#f09433,#dc2743,#bc1888); color:white; border:none; border-radius:6px; padding:8px; font-weight:700; cursor:pointer; font-size:12px;">⏸ Pause</button>',
+      '<button id="ief-stop-btn" style="background:#21262d; color:#ff7b72; border:1px solid #30363d; border-radius:6px; padding:8px 14px; cursor:pointer; font-size:12px;">Stop</button>',
     '</div>'
   ].join('');
   document.body.appendChild(panel);
@@ -314,12 +315,38 @@ function generateBulkFollowScript(usernames, speed) {
   const closeBtn = document.getElementById('ief-close-btn');
   const speedSelect = document.getElementById('ief-speed-select');
   const countsText = document.getElementById('ief-counts');
+  const logBox = document.getElementById('ief-log');
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  function log(msg, color) {
+    console.log('[InstaExtract FollowBot]', msg);
+    if (!logBox) return;
+    const item = document.createElement('div');
+    if (color) item.style.color = color;
+    item.innerText = msg;
+    logBox.appendChild(item);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
 
   function getCsrfToken() {
     const m = document.cookie.match(/csrftoken=([^;]+)/);
     return m ? m[1] : '';
+  }
+
+  function getViewerId() {
+    const m = document.cookie.match(/ds_user_id=([0-9]+)/);
+    return m ? m[1] : '';
+  }
+
+  function getRolloutHash() {
+    try {
+      const m = document.documentElement.innerHTML.match(/"rollout_hash":"([^"]+)"/) ||
+                document.documentElement.innerHTML.match(/"rev":([0-9]+)/);
+      return m ? m[1] : '1';
+    } catch(e) {
+      return '1';
+    }
   }
 
   function getDelay() {
@@ -339,17 +366,14 @@ function generateBulkFollowScript(usernames, speed) {
     }
   }
 
-  function getViewerId() {
-    const m = document.cookie.match(/ds_user_id=([0-9]+)/);
-    return m ? m[1] : '';
-  }
-
   async function resolveTargetUser(username) {
     const cleanUser = String(username || '').replace(/^@+/, '').trim().toLowerCase();
     if (!cleanUser) return { invalid: true };
 
     try {
-      const res = await fetch('/' + encodeURIComponent(cleanUser) + '/');
+      const res = await fetch('/' + encodeURIComponent(cleanUser) + '/', {
+        credentials: 'include'
+      });
       const html = await res.text();
 
       // Check explicit 404
@@ -360,6 +384,10 @@ function generateBulkFollowScript(usernames, speed) {
       // Extract user id from SSR profile payload
       const m = html.match(/"profile_id":"([0-9]+)"/) ||
                 html.match(/"page_id":"profilePage_([0-9]+)"/) ||
+                html.match(/"props":\{[^}]*"id":"([0-9]+)"/) ||
+                html.match(/"user_id":"([0-9]+)"/) ||
+                html.match(/"pk":"([0-9]{5,20})"/) ||
+                html.match(/"pk_id":"([0-9]{5,20})"/) ||
                 html.match(/"id":"([0-9]{5,20})"/);
 
       if (m && m[1]) {
@@ -374,6 +402,29 @@ function generateBulkFollowScript(usernames, speed) {
         return { notFound: true, username: cleanUser };
       }
 
+      // Fallback: search via topsearch
+      const csrf = getCsrfToken();
+      if (csrf) {
+        try {
+          const sRes = await fetch('/api/v1/web/search/topsearch/?query=' + encodeURIComponent(cleanUser), {
+            credentials: 'include',
+            headers: {
+              'x-csrftoken': csrf,
+              'x-ig-app-id': '936619743392459',
+              'x-asbd-id': '129477',
+              'x-requested-with': 'XMLHttpRequest'
+            }
+          });
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            const hit = (sData.users || []).find(u => u.user && u.user.username.toLowerCase() === cleanUser);
+            if (hit && hit.user && hit.user.pk) {
+              return { success: true, userId: String(hit.user.pk), username: cleanUser };
+            }
+          }
+        } catch(e) {}
+      }
+
       return { notFound: true, username: cleanUser };
     } catch(e) {
       return { error: e.message, username: cleanUser };
@@ -381,42 +432,69 @@ function generateBulkFollowScript(usernames, speed) {
   }
 
   async function checkFriendshipStatus(userId, csrf) {
+    if (!userId) return null;
+    const rolloutHash = getRolloutHash();
     try {
       const res = await fetch('/api/v1/friendships/show/' + encodeURIComponent(userId) + '/', {
+        method: 'GET',
+        credentials: 'include',
         headers: {
           'x-csrftoken': csrf,
+          'x-instagram-ajax': rolloutHash,
           'x-ig-app-id': '936619743392459',
           'x-asbd-id': '129477',
+          'x-ig-www-claim': '0',
           'x-requested-with': 'XMLHttpRequest'
         }
       });
       if (res.ok) {
-        const d = await res.json();
-        return {
-          following: !!d.following,
-          outgoing_request: !!d.outgoing_request,
-          is_private: !!d.is_private
-        };
+        const text = await res.text();
+        if (text && !text.startsWith('<')) {
+          const d = JSON.parse(text);
+          return {
+            following: !!d.following,
+            outgoing_request: !!d.outgoing_request,
+            is_private: !!d.is_private,
+            raw: d
+          };
+        }
       }
-    } catch(e) {}
+    } catch(e) {
+      console.warn('[InstaExtract] checkFriendshipStatus error:', e);
+    }
     return null;
   }
 
   async function sendFollowRequest(userId, csrf) {
+    if (!userId) return { error: 'Missing userId' };
+    const rolloutHash = getRolloutHash();
+
+    const headers = {
+      'x-csrftoken': csrf,
+      'x-instagram-ajax': rolloutHash,
+      'x-ig-app-id': '936619743392459',
+      'x-asbd-id': '129477',
+      'x-ig-www-claim': '0',
+      'x-requested-with': 'XMLHttpRequest',
+      'content-type': 'application/x-www-form-urlencoded'
+    };
+
+    const body = 'container_module=profile&include_follow_friction_check=true&nav_chain=PolarisFeedRoot%3AfeedPage%3A1%3Aunexpected&user_id=' + encodeURIComponent(userId);
+
     try {
+      log('Dispatching follow mutation to userId: ' + userId + '...', '#8b949e');
       const res = await fetch('/api/v1/friendships/create/' + encodeURIComponent(userId) + '/', {
         method: 'POST',
-        headers: {
-          'x-csrftoken': csrf,
-          'x-ig-app-id': '936619743392459',
-          'x-asbd-id': '129477',
-          'x-requested-with': 'XMLHttpRequest',
-          'content-type': 'application/x-www-form-urlencoded'
-        },
-        body: 'user_id=' + encodeURIComponent(userId)
+        credentials: 'include',
+        headers: headers,
+        body: body
       });
 
-      const data = await res.json().catch(() => null);
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch(e) {}
+
+      log('Mutation response HTTP ' + res.status + (data && data.status ? ' (' + data.status + ')' : ''), '#8b949e');
 
       if (res.status === 429 || (data && (data.message === 'feedback_required' || data.spam))) {
         return { rateLimited: true };
@@ -424,20 +502,49 @@ function generateBulkFollowScript(usernames, speed) {
 
       if (res.ok && data) {
         if (data.friendship_status) {
-          if (data.friendship_status.following === true) {
-            return { success: true, mode: 'followed' };
-          }
-          if (data.friendship_status.outgoing_request === true) {
-            return { success: true, mode: 'requested' };
-          }
+          if (data.friendship_status.following === true) return { success: true, mode: 'followed' };
+          if (data.friendship_status.outgoing_request === true) return { success: true, mode: 'requested' };
         }
         if (data.result === 'following') return { success: true, mode: 'followed' };
         if (data.result === 'requested') return { success: true, mode: 'requested' };
-        return { success: true, mode: 'followed' };
+        if (data.status === 'ok') return { success: true, mode: 'followed' };
+      }
+
+      // Fallback endpoint if primary returned non-JSON
+      if (!data || !res.ok) {
+        log('Primary endpoint unconfirmed, checking alternative endpoint...', '#8b949e');
+        const res2 = await fetch('/api/v1/web/friendships/' + encodeURIComponent(userId) + '/follow/', {
+          method: 'POST',
+          credentials: 'include',
+          headers: headers,
+          body: body
+        });
+        const text2 = await res2.text();
+        let data2 = null;
+        try { data2 = JSON.parse(text2); } catch(e) {}
+
+        if (res2.ok && data2) {
+          if (data2.friendship_status) {
+            if (data2.friendship_status.following === true) return { success: true, mode: 'followed' };
+            if (data2.friendship_status.outgoing_request === true) return { success: true, mode: 'requested' };
+          }
+          if (data2.result === 'following') return { success: true, mode: 'followed' };
+          if (data2.result === 'requested') return { success: true, mode: 'requested' };
+          if (data2.status === 'ok') return { success: true, mode: 'followed' };
+        }
+      }
+
+      // Verification check: poll friendship status
+      await sleep(1000);
+      const verify = await checkFriendshipStatus(userId, csrf);
+      if (verify) {
+        if (verify.following) return { success: true, mode: 'followed' };
+        if (verify.outgoing_request) return { success: true, mode: 'requested' };
       }
 
       return { error: (data && data.message) || ('HTTP ' + res.status) };
     } catch(e) {
+      log('Follow request exception: ' + e.message, '#ff7b72');
       return { error: e.message };
     }
   }
@@ -459,6 +566,7 @@ function generateBulkFollowScript(usernames, speed) {
     if (!csrf) {
       statusText.innerHTML = '<span style="color:#ff7b72;">❌ Authentication Error</span>';
       substatusText.innerText = 'Could not find csrftoken cookie. Please make sure you are logged in to instagram.com!';
+      log('❌ csrftoken cookie not found in active session', '#ff7b72');
       return;
     }
 
@@ -466,6 +574,7 @@ function generateBulkFollowScript(usernames, speed) {
 
     statusText.innerText = 'Auditing @' + username + ' (' + (currentIndex + 1) + '/' + targets.length + ')...';
     substatusText.innerText = 'Resolving user profile & friendship status in background...';
+    log('[' + (currentIndex + 1) + '/' + targets.length + '] Resolving @' + username + '...', '#58a6ff');
 
     const info = await resolveTargetUser(username);
 
@@ -473,27 +582,33 @@ function generateBulkFollowScript(usernames, speed) {
       skippedCount++;
       statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Account Not Found</span>';
       substatusText.innerText = '@' + username + ' does not exist or has been disabled.';
+      log('⏭ @' + username + ': Account not found or disabled', '#e3b341');
     } else if (info.error) {
       skippedCount++;
       statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Network Error</span>';
       substatusText.innerText = '@' + username + ': ' + info.error;
+      log('⏭ @' + username + ': Network error (' + info.error + ')', '#e3b341');
     } else if (viewerId && info.userId === viewerId) {
       skippedCount++;
       statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Your Own Account</span>';
       substatusText.innerText = '@' + username + ' is your logged-in account.';
+      log('⏭ @' + username + ': Logged-in viewer account skipped', '#e3b341');
     } else {
       // Pre-check friendship status
       statusText.innerText = 'Checking @' + username + '...';
+      log('Checking friendship status for @' + username + ' (ID: ' + info.userId + ')...', '#8b949e');
       const status = await checkFriendshipStatus(info.userId, csrf);
 
       if (status && status.following) {
         skippedCount++;
         statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Already Following</span>';
         substatusText.innerText = 'You are already following @' + username + '.';
+        log('⏭ @' + username + ': Already following', '#e3b341');
       } else if (status && status.outgoing_request) {
         skippedCount++;
         statusText.innerHTML = '<span style="color:#e3b341;">⏭ SKIPPED: Already Requested</span>';
         substatusText.innerText = 'Follow request is already pending for private account @' + username + '.';
+        log('⏭ @' + username + ': Follow request already pending (Private account)', '#e3b341');
       } else {
         // Send follow request
         statusText.innerText = 'Sending Follow Request to @' + username + '...';
@@ -504,6 +619,7 @@ function generateBulkFollowScript(usernames, speed) {
         if (outcome.rateLimited) {
           statusText.innerHTML = '<span style="color:#ff7b72;">⚠️ Instagram Action Limit Detected</span>';
           substatusText.innerText = 'Instagram cooldown triggered. Pausing 60s to protect account...';
+          log('⚠️ Action limit detected! Pausing 60s cooldown...', '#ff7b72');
           await sleep(60000);
           return;
         } else if (outcome.success) {
@@ -511,15 +627,18 @@ function generateBulkFollowScript(usernames, speed) {
             requestedCount++;
             statusText.innerHTML = '<span style="color:#58a6ff;">📩 Follow Request Sent @' + username + '</span>';
             substatusText.innerText = 'Private profile request sent successfully!';
+            log('📩 @' + username + ': Follow request sent (Private account)', '#58a6ff');
           } else {
             followedCount++;
             statusText.innerHTML = '<span style="color:#3fb950;">✓ Followed @' + username + '</span>';
             substatusText.innerText = 'Now following (' + followedCount + ' total followed)';
+            log('✓ @' + username + ': Followed successfully', '#3fb950');
           }
         } else {
           failedCount++;
           statusText.innerHTML = '<span style="color:#ff7b72;">✗ Action not confirmed for @' + username + '</span>';
           substatusText.innerText = outcome.error || 'Follow request could not be completed.';
+          log('✗ @' + username + ': Action unconfirmed (' + (outcome.error || 'error') + ')', '#ff7b72');
         }
       }
     }
@@ -531,11 +650,14 @@ function generateBulkFollowScript(usernames, speed) {
     if (currentIndex < targets.length) {
       const delay = getDelay();
       let remaining = Math.round(delay / 1000);
+      const nextUser = String(targets[currentIndex] || '').replace(/^@+/, '').trim();
+      substatusText.innerText = 'Next profile (@' + nextUser + ') in ' + remaining + 's (Pacing delay)...';
+      log('⏳ Pacing delay ' + remaining + 's before next profile (@' + nextUser + ')...', '#8b949e');
       const timer = setInterval(() => {
         if (isPaused || isStopped) { clearInterval(timer); return; }
         remaining--;
         if (remaining > 0) {
-          substatusText.innerText = 'Next profile in ' + remaining + 's (Pacing delay)...';
+          substatusText.innerText = 'Next profile (@' + nextUser + ') in ' + remaining + 's (Pacing delay)...';
         } else {
           clearInterval(timer);
           processNext();
@@ -545,14 +667,21 @@ function generateBulkFollowScript(usernames, speed) {
       let headline = '🎉 Bulk Follow Finished!';
       let headlineColor = '#3fb950';
 
-      if (followedCount === 0 && requestedCount === 0 && skippedCount > 0) {
+      if (failedCount > 0 && followedCount === 0 && requestedCount === 0 && skippedCount === 0) {
+        headline = '❌ All Follow Requests Failed';
+        headlineColor = '#ff7b72';
+      } else if (failedCount > 0 && followedCount === 0 && requestedCount === 0) {
+        headline = '⚠️ Completed with Issues (' + failedCount + ' failed, ' + skippedCount + ' skipped)';
+        headlineColor = '#ff7b72';
+      } else if (followedCount === 0 && requestedCount === 0 && skippedCount > 0) {
         headline = 'ℹ️ Completed (All Accounts Skipped)';
         headlineColor = '#e3b341';
-      } else if (failedCount > 0 && followedCount === 0 && requestedCount === 0) {
-        headline = '⚠️ Completed with Issues';
-        headlineColor = '#ff7b72';
-      } else if (skippedCount > 0) {
-        headline = '✓ Completed (' + followedCount + ' followed, ' + skippedCount + ' skipped)';
+      } else if (failedCount > 0) {
+        headline = '✓ Completed (' + (followedCount + requestedCount) + ' success, ' + failedCount + ' failed, ' + skippedCount + ' skipped)';
+        headlineColor = '#e3b341';
+      } else {
+        headline = '🎉 Bulk Follow Finished (' + (followedCount + requestedCount) + ' followed/requested)';
+        headlineColor = '#3fb950';
       }
 
       statusText.innerHTML = '<span style="color:' + headlineColor + ';">' + headline + '</span>';
@@ -560,6 +689,8 @@ function generateBulkFollowScript(usernames, speed) {
         (requestedCount > 0 ? '<strong style="color:#58a6ff;">' + requestedCount + '</strong> requested · ' : '') +
         '<strong style="color:#e3b341;">' + skippedCount + '</strong> skipped · ' +
         '<strong style="color:#ff7b72;">' + failedCount + '</strong> failed';
+
+      log('🎉 Completed queue: ' + followedCount + ' followed, ' + (requestedCount > 0 ? requestedCount + ' requested, ' : '') + skippedCount + ' skipped, ' + failedCount + ' failed.', '#3fb950');
 
       toggleBtn.innerText = '✓ Finished';
       toggleBtn.disabled = true;
@@ -571,11 +702,13 @@ function generateBulkFollowScript(usernames, speed) {
     if (isPaused) {
       isPaused = false;
       toggleBtn.innerText = '⏸ Pause';
+      log('▶ Automation resumed by user', '#58a6ff');
       processNext();
     } else {
       isPaused = true;
       toggleBtn.innerText = '▶ Resume';
       substatusText.innerText = 'Automation paused by user';
+      log('⏸ Automation paused by user', '#e3b341');
     }
   };
 
@@ -584,6 +717,7 @@ function generateBulkFollowScript(usernames, speed) {
     isPaused = true;
     statusText.innerText = '🛑 Automation Stopped';
     substatusText.innerText = 'Queue halted at index ' + currentIndex + '/' + targets.length;
+    log('🛑 Automation stopped by user at ' + currentIndex + '/' + targets.length, '#ff7b72');
     toggleBtn.disabled = true;
   };
 
@@ -594,6 +728,7 @@ function generateBulkFollowScript(usernames, speed) {
   };
 
   // Auto-start on load
+  log('🚀 Initialized queue with ' + targets.length + ' targets', '#8b949e');
   toggleBtn.innerText = '⏸ Pause';
   isPaused = false;
   processNext();
