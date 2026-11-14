@@ -11,6 +11,9 @@
   <link rel="apple-touch-icon" href="og-image.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#e1306c">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 
   <!-- Open Graph -->
   <meta property="og:title" content="InstaExtract Dashboard — Review Instagram Non-Mutuals">
@@ -19,7 +22,7 @@
   <meta property="og:url" content="https://instaextract.in/dashboard.html">
   <meta property="og:type" content="website">
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.3.0">
   <style>
     /* Dashboard specific layout enhancements */
     .dashboard-header {
@@ -760,7 +763,7 @@
   <!-- Scripts -->
   <script src="auditor_bundle.js?v=2.3"></script>
   <script src="lib/qrcode.min.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=2.3.0"></script>
   <script>
     let allUsers = [];
     let stats = { fans: 0, followers: 0, following: 0, mutuals: 0, notFollowingBack: 0 };
@@ -1762,7 +1765,8 @@
     for (const el of spans) {
       const raw = (el.innerText || '').trim().toLowerCase().replace(/✓/g, '').trim();
       const txt = raw.replace(/^@/, '').trim();
-      if (txt === targetClean || txt.split(/\\r?\\n/)[0].replace(/^@/, '').trim() === targetClean) {
+      const firstLine = txt.indexOf(String.fromCharCode(10)) !== -1 ? txt.split(String.fromCharCode(10))[0].replace(/^@/, '').trim() : txt;
+      if (txt === targetClean || firstLine === targetClean) {
         const row = getRowContainer(el, dialog);
         if (row) return row;
       }
@@ -1894,7 +1898,7 @@
         candidates.push(prefix);
       }
       // 2. Part without trailing digits/symbol (e.g. "monikanegi.6" -> "monikanegi")
-      const noTrailing = clean.replace(/[._]\\d+$/, '');
+      const noTrailing = clean.replace(/[._][0-9]+$/, '');
       if (noTrailing && noTrailing.length >= 3 && !candidates.includes(noTrailing)) {
         candidates.push(noTrailing);
       }

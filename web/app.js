@@ -963,7 +963,7 @@ function generateBulkFollowScript(usernames, speed) {
       alert('The ' + name + ' list is currently empty.');
       return;
     }
-    const text = list.join('\\n');
+    const text = list.join(String.fromCharCode(10));
     const oldText = btn ? btn.innerText : '';
     const oldColor = btn ? btn.style.color : '';
     navigator.clipboard.writeText(text).then(() => {
@@ -986,7 +986,7 @@ function generateBulkFollowScript(usernames, speed) {
       alert('The ' + name + ' list is currently empty.');
       return;
     }
-    const blob = new Blob([list.join('\\n')], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([list.join(String.fromCharCode(10))], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
