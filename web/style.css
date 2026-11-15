@@ -785,6 +785,8 @@ details.faq-item[open] summary.faq-question::after {
 }
 .tab-header {
   display: flex;
+  justify-content: center;
+  align-items: center;
   gap: 10px;
   border-bottom: 1px solid var(--card-border);
   padding-bottom: 14px;
